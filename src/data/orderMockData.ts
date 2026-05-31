@@ -18,7 +18,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   cancelled: 'badge-red',
 }
 
-export const ORDER_MOCK_LIST: Order[] = [
+const INITIAL_ORDER_MOCK_LIST: Order[] = [
   {
     id: 'ORD-001',
     customerId: 'U001', customerName: 'Nguyễn Văn An', customerPhone: '0901234567',
@@ -35,6 +35,7 @@ export const ORDER_MOCK_LIST: Order[] = [
   {
     id: 'ORD-002',
     customerId: 'U002', customerName: 'Trần Thị Bình', customerPhone: '0912345678',
+    shopId: 'SH01',
     items: [
       { skuId: 'P002-S2', skuCode: 'P002-3KG', productName: 'Whiskas Tuna', variantLabel: '3kg', quantity: 1, unitPrice: 215000, subtotal: 215000 },
     ],
@@ -46,6 +47,7 @@ export const ORDER_MOCK_LIST: Order[] = [
   {
     id: 'ORD-003',
     customerId: 'U001', customerName: 'Nguyễn Văn An', customerPhone: '0901234567',
+    shopId: 'SH01',
     items: [
       { skuId: 'P004-S2', skuCode: 'P004-5L-LV', productName: 'Cát Bioline', variantLabel: '5L / Lavender', quantity: 3, unitPrice: 105000, subtotal: 315000 },
       { skuId: 'P006-S1', skuCode: 'P006-150G-NHO', productName: 'Snack Dentix', variantLabel: '150g / Nhỏ', quantity: 2, unitPrice: 55000, subtotal: 110000 },
@@ -55,3 +57,41 @@ export const ORDER_MOCK_LIST: Order[] = [
     note: 'Giao trong giờ hành chính', createdAt: '2026-05-31 16:00',
   },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_orders_data'
+
+const getStoredOrders = (): Order[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        const parsed = JSON.parse(data) as Order[]
+        let merged = [...parsed]
+        let changed = false
+        INITIAL_ORDER_MOCK_LIST.forEach(initO => {
+          if (!merged.some(o => o.id === initO.id)) {
+            merged.push(initO)
+            changed = true
+          }
+        })
+        if (changed) {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged))
+        }
+        return merged
+      } catch (e) {
+        console.error('Failed to parse stored orders', e)
+      }
+    }
+  }
+  return INITIAL_ORDER_MOCK_LIST
+}
+
+export const ORDER_MOCK_LIST: Order[] = getStoredOrders()
+
+export const saveOrders = (orders: Order[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(orders))
+  }
+  ORDER_MOCK_LIST.length = 0
+  ORDER_MOCK_LIST.push(...orders)
+}
