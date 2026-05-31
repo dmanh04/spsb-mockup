@@ -45,6 +45,7 @@ import PetHistoryPage from './pages/petcare/PetHistoryPage'
 // Shop Head
 import ShopHeadDashboardPage from './pages/shop-head/DashboardPage'
 import StaffPage from './pages/shop-head/StaffPage'
+import ShopHeadStaffFormPage from './pages/shop-head/StaffFormPage'
 import SchedulePage from './pages/shop-head/SchedulePage'
 import LeaveRequestsPage from './pages/shop-head/LeaveRequestsPage'
 import RoomsPage from './pages/shop-head/RoomsPage'
@@ -146,6 +147,8 @@ export default function App() {
         }>
           <Route index element={<ShopHeadDashboardPage />} />
           <Route path="staff" element={<StaffPage />} />
+          <Route path="staff/new" element={<ShopHeadStaffFormPage />} />
+          <Route path="staff/:id/edit" element={<ShopHeadStaffFormPage />} />
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="leave-requests" element={<LeaveRequestsPage />} />
           <Route path="bookings" element={<ShopHeadBookingsPage />} />

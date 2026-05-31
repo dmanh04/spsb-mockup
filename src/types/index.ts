@@ -21,6 +21,18 @@ export interface User {
   lastLogin: string
   hireDate?: string
   position?: string
+  // HR & Payroll Additions for mockup richness
+  salaryType?: 'fixed' | 'commission'
+  baseSalary?: number
+  commissionRate?: number
+  contractType?: 'full_time' | 'part_time' | 'internship' | 'freelance'
+  taxCode?: string
+  insuranceId?: string
+  bankName?: string
+  bankAccount?: string
+  emergencyContactName?: string
+  emergencyContactRelation?: string
+  emergencyContactPhone?: string
 }
 
 export type Module =

@@ -1,6 +1,6 @@
 import type { User } from '@/types'
 
-export const USER_MOCK_LIST: User[] = [
+const INITIAL_USER_MOCK_LIST: User[] = [
   // Customers
   { id: 'U001', fullName: 'Nguyễn Văn An', email: 'an@customer.com', phone: '0901234567', role: 'customer', status: 'active', avatar: 'https://placehold.co/40x40/3B82F6/white?text=NVA', createdAt: '2025-03-15', lastLogin: '2026-05-30' },
   { id: 'U002', fullName: 'Trần Thị Bình', email: 'binh@customer.com', phone: '0912345678', role: 'customer', status: 'active', avatar: 'https://placehold.co/40x40/10B981/white?text=TTB', createdAt: '2025-06-20', lastLogin: '2026-05-28' },
@@ -44,6 +44,32 @@ export const ROLE_COLORS: Record<string, string> = {
   warehouse_manager: 'badge-gray',
 }
 
+const LOCAL_STORAGE_KEY = 'spsb_users_data'
+
+const getStoredUsers = (): User[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored users', e)
+      }
+    }
+  }
+  return INITIAL_USER_MOCK_LIST
+}
+
+export const USER_MOCK_LIST: User[] = getStoredUsers()
+
+export const saveUsers = (users: User[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(users))
+  }
+  USER_MOCK_LIST.length = 0
+  USER_MOCK_LIST.push(...users)
+}
+
 export const DEMO_ACCOUNTS = [
   { label: 'Khách hàng', email: 'an@customer.com', role: 'customer' as const },
   { label: 'NV Vận hành', email: 'cam@operation.petcare.com', role: 'operation_staff' as const },
@@ -52,3 +78,4 @@ export const DEMO_ACCOUNTS = [
   { label: 'Admin', email: 'admin@petcare.com', role: 'admin' as const },
   { label: 'Quản lý kho', email: 'khanh@warehouse.petcare.com', role: 'warehouse_manager' as const },
 ]
+
