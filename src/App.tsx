@@ -68,6 +68,7 @@ import BookingManagementPage from './pages/admin/BookingManagementPage'
 import AdminBookingDetailPage from './pages/admin/BookingDetailPage'
 import BookingFormPage from './pages/admin/BookingFormPage'
 import AdminInventoryPage from './pages/admin/InventoryPage'
+import InventoryAdjustmentPage from './pages/admin/InventoryAdjustmentPage'
 import AdminVouchersPage from './pages/admin/VouchersPage'
 import PromotionsPage from './pages/admin/PromotionsPage'
 import AIBreedPage from './pages/admin/AIBreedPage'
@@ -171,6 +172,7 @@ export default function App() {
           <Route path="bookings/:id" element={<AdminBookingDetailPage />} />
           <Route path="bookings/:id/edit" element={<BookingFormPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
+          <Route path="inventory/adjust" element={<InventoryAdjustmentPage />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="promotions" element={<PromotionsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
