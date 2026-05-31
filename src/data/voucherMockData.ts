@@ -1,6 +1,6 @@
 import type { Voucher } from '@/types'
 
-export const VOUCHER_MOCK_LIST: Voucher[] = [
+const INITIAL_VOUCHER_MOCK_LIST: Voucher[] = [
   {
     id: 'V001', code: 'PETCARE50K', name: 'Giảm 50.000đ cho đơn từ 500k',
     type: 'fixed', value: 50000, minOrderValue: 500000,
@@ -32,3 +32,29 @@ export const VOUCHER_MOCK_LIST: Voucher[] = [
     startDate: '2026-05-15', endDate: '2026-07-15', status: 'active', shopId: 'SH01',
   },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_vouchers_data'
+
+const getStoredVouchers = (): Voucher[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored vouchers', e)
+      }
+    }
+  }
+  return INITIAL_VOUCHER_MOCK_LIST
+}
+
+export const VOUCHER_MOCK_LIST: Voucher[] = getStoredVouchers()
+
+export const saveVouchers = (vouchers: Voucher[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vouchers))
+  }
+  VOUCHER_MOCK_LIST.length = 0
+  VOUCHER_MOCK_LIST.push(...vouchers)
+}
