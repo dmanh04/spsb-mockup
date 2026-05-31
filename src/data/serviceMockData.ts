@@ -61,9 +61,34 @@ export const SERVICE_MOCK_LIST: Service[] = [
     ],
     status: 'active', image: 'https://placehold.co/300x200/6366F1/white?text=Full+Grooming',
   },
+  {
+    id: 'SV006', name: 'Lưu trú Khách sạn', category: 'boarding',
+    description: 'Phòng ốc thoáng mát, ăn 3 bữa/ngày, vận động tự do 2 lần/ngày, gửi video cập nhật hàng ngày.',
+    duration: 1440, price: 150000, petTypes: ['dog', 'cat'], shopIds: ['SH01', 'SH02', 'SH03'],
+    pricingMatrix: [
+      { size: 'small', label: 'Nhỏ (< 5kg)', price: 150000, duration: 1440 },
+      { size: 'medium', label: 'Vừa (5–15kg)', price: 200000, duration: 1440 },
+      { size: 'large', label: 'Lớn (15–30kg)', price: 300000, duration: 1440 },
+      { size: 'xlarge', label: 'Rất lớn (> 30kg)', price: 400000, duration: 1440 },
+    ],
+    status: 'active', image: 'https://placehold.co/300x200/F59E0B/white?text=Boarding',
+  },
+  {
+    id: 'SV007', name: 'Khám tổng quát', category: 'checkup',
+    description: 'Khám lâm sàng, kiểm tra da lông, mắt, tai, răng miệng, tiêu hóa và tư vấn dinh dưỡng.',
+    duration: 30, price: 100000, petTypes: ['dog', 'cat'], shopIds: ['SH01'],
+    pricingMatrix: [
+      { size: 'small', label: 'Mọi giống', price: 100000, duration: 30 },
+      { size: 'medium', label: 'Mọi giống', price: 100000, duration: 30 },
+      { size: 'large', label: 'Mọi giống', price: 100000, duration: 30 },
+      { size: 'xlarge', label: 'Mọi giống', price: 100000, duration: 30 },
+    ],
+    status: 'active', image: 'https://placehold.co/300x200/EF4444/white?text=Checkup',
+  },
 ]
 
 export const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   grooming: 'Cắt tỉa', bathing: 'Tắm rửa', spa: 'Spa',
   boarding: 'Lưu trú', nail: 'Móng & Tai', ear: 'Vệ sinh tai',
+  checkup: 'Thăm khám',
 }

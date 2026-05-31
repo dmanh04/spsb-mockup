@@ -82,7 +82,7 @@ export interface ServicePricing {
 export interface Service {
   id: string
   name: string
-  category: 'grooming' | 'bathing' | 'spa' | 'boarding' | 'nail' | 'ear'
+  category: 'grooming' | 'bathing' | 'spa' | 'boarding' | 'nail' | 'ear' | 'checkup'
   description: string
   duration: number
   price: number
