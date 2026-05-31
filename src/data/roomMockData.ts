@@ -17,9 +17,36 @@ const INITIAL_ROOM_MOCK_LIST: Room[] = [
   { id: 'R005', name: 'Spa Premium 2', categoryId: 'RC02', categoryName: 'Phòng Spa', shopId: 'SH01', capacity: 1, status: 'available', equipment: ['Bồn tắm xông', 'Máy massage'] },
   { id: 'R006', name: 'Tắm cơ bản 1', categoryId: 'RC03', categoryName: 'Phòng Tắm', shopId: 'SH01', capacity: 2, status: 'available', equipment: ['Bồn tắm', 'Máy sấy cơ bản'] },
   { id: 'R010', name: 'Lưu trú Standard Suite', categoryId: 'RC_BOARDING', categoryName: 'Phòng Lưu trú / Nội trú', shopId: 'SH01', capacity: 4, status: 'available', equipment: ['Chuồng đệm êm', 'Bát tự động', 'Hệ thống khử mùi'] },
-  { id: 'R011', name: 'Lưu trú Premium VIP Suite', categoryId: 'RC_BOARDING', categoryName: 'Phòng Lưu trú / Nội trú', shopId: 'SH01', capacity: 2, status: 'available', equipment: ['Camera giám sát 24/7', 'Điều hòa nhiệt độ', 'Đệm Memory Foam'] },
+  { 
+    id: 'R011', 
+    name: 'Lưu trú Premium VIP Suite', 
+    categoryId: 'RC_BOARDING', 
+    categoryName: 'Phòng Lưu trú / Nội trú', 
+    shopId: 'SH01', 
+    capacity: 2, 
+    status: 'available', 
+    equipment: ['Camera giám sát 24/7', 'Điều hòa nhiệt độ', 'Đệm Memory Foam'],
+    maintenanceLogs: [
+      { id: 'M-101', startedAt: '2026-05-25 09:00', completedAt: '2026-05-25 15:30', requestedBy: 'Trần Hùng', reason: 'Bảo trì định kỳ điều hòa chi nhánh', note: 'Đã nạp gas và vệ sinh lưới lọc sạch sẽ.' }
+    ],
+    servingHistory: [
+      { bookingId: 'BK-002', petName: 'Luna', customerName: 'Trần Thị Bình', serviceName: 'Spa Premium', date: '2026-05-30', checkinTime: '10:25', checkoutTime: '12:45' }
+    ]
+  },
   { id: 'R007', name: 'Grooming Q3-1', categoryId: 'RC04', categoryName: 'Phòng Grooming', shopId: 'SH02', capacity: 1, status: 'available', equipment: ['Bàn grooming', 'Máy sấy'] },
-  { id: 'R008', name: 'Grooming Q3-2', categoryId: 'RC04', categoryName: 'Phòng Grooming', shopId: 'SH02', capacity: 1, status: 'maintenance', equipment: ['Bàn grooming'] },
+  { 
+    id: 'R008', 
+    name: 'Grooming Q3-2', 
+    categoryId: 'RC04', 
+    categoryName: 'Phòng Grooming', 
+    shopId: 'SH02', 
+    capacity: 1, 
+    status: 'maintenance', 
+    equipment: ['Bàn grooming'],
+    maintenanceLogs: [
+      { id: 'M-102', startedAt: '2026-05-30 10:00', requestedBy: 'Lê Lan', reason: 'Bàn grooming bị lỏng chốt xoay cơ học', note: 'Chờ thợ linh kiện thay thế cơ cấu chốt.' }
+    ]
+  },
   { id: 'R009', name: 'Spa Q3-1', categoryId: 'RC05', categoryName: 'Phòng Spa', shopId: 'SH02', capacity: 1, status: 'available', equipment: ['Bồn tắm xông', 'Máy massage'] },
 ]
 

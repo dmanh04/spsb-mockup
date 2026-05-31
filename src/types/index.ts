@@ -221,6 +221,24 @@ export interface RoomCategory {
   color: string
   shopId: string
 }
+export interface MaintenanceLog {
+  id: string
+  startedAt: string
+  completedAt?: string
+  requestedBy: string
+  reason: string
+  note?: string
+}
+
+export interface ServingRecord {
+  bookingId: string
+  petName: string
+  customerName: string
+  serviceName: string
+  date: string
+  checkinTime: string
+  checkoutTime?: string
+}
 
 export interface Room {
   id: string
@@ -231,6 +249,8 @@ export interface Room {
   capacity: number
   status: 'available' | 'occupied' | 'maintenance' | 'inactive'
   equipment: string[]
+  maintenanceLogs?: MaintenanceLog[]
+  servingHistory?: ServingRecord[]
 }
 
 // Shop
