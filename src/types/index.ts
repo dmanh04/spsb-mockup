@@ -217,7 +217,7 @@ export interface Shop {
   phone: string
   shopHeadId?: string
   shopHeadName?: string
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'renovating'
   openTime: string
   closeTime: string
   createdAt: string
