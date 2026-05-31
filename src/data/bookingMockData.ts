@@ -33,7 +33,7 @@ export const STATUS_BG: Record<BookingStatus, string> = {
   no_show: 'bg-red-100 border-red-300 text-red-800',
 }
 
-export const BOOKING_MOCK_LIST: Booking[] = [
+const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
   {
     id: 'BK-001',
     customerId: 'U001', customerName: 'Nguyễn Văn An', customerPhone: '0901234567',
@@ -150,3 +150,29 @@ export const BOOKING_MOCK_LIST: Booking[] = [
     note: '', createdAt: '2026-05-27 14:00',
   },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_bookings_data'
+
+const getStoredBookings = (): Booking[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored bookings', e)
+      }
+    }
+  }
+  return INITIAL_BOOKING_MOCK_LIST
+}
+
+export const BOOKING_MOCK_LIST: Booking[] = getStoredBookings()
+
+export const saveBookings = (bookings: Booking[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(bookings))
+  }
+  BOOKING_MOCK_LIST.length = 0
+  BOOKING_MOCK_LIST.push(...bookings)
+}

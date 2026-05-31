@@ -65,6 +65,8 @@ import ServiceManagementPage from './pages/admin/ServiceManagementPage'
 import ServiceFormPage from './pages/admin/ServiceFormPage'
 import ShopsPage from './pages/admin/ShopsPage'
 import BookingManagementPage from './pages/admin/BookingManagementPage'
+import AdminBookingDetailPage from './pages/admin/BookingDetailPage'
+import BookingFormPage from './pages/admin/BookingFormPage'
 import AdminInventoryPage from './pages/admin/InventoryPage'
 import AdminVouchersPage from './pages/admin/VouchersPage'
 import PromotionsPage from './pages/admin/PromotionsPage'
@@ -165,6 +167,9 @@ export default function App() {
           <Route path="services/new" element={<ServiceFormPage />} />
           <Route path="services/:id/edit" element={<ServiceFormPage />} />
           <Route path="bookings" element={<BookingManagementPage />} />
+          <Route path="bookings/new" element={<BookingFormPage />} />
+          <Route path="bookings/:id" element={<AdminBookingDetailPage />} />
+          <Route path="bookings/:id/edit" element={<BookingFormPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="promotions" element={<PromotionsPage />} />
