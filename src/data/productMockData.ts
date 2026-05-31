@@ -9,7 +9,7 @@ export const PRODUCT_CATEGORIES = [
   { id: 'C006', name: 'Snack & Bánh thưởng', icon: '🦴', count: 19 },
 ]
 
-export const PRODUCT_MOCK_LIST: Product[] = [
+const INITIAL_PRODUCT_MOCK_LIST: Product[] = [
   {
     id: 'P001',
     name: 'Royal Canin Adult',
@@ -164,6 +164,33 @@ export const PRODUCT_MOCK_LIST: Product[] = [
     createdAt: '2024-03-15',
   },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_products_data'
+
+const getStoredProducts = (): Product[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored products', e)
+      }
+    }
+  }
+  return INITIAL_PRODUCT_MOCK_LIST
+}
+
+export const PRODUCT_MOCK_LIST: Product[] = getStoredProducts()
+
+export const saveProducts = (products: Product[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(products))
+  }
+  // Mutate array in-place so all active references receive updates
+  PRODUCT_MOCK_LIST.length = 0
+  PRODUCT_MOCK_LIST.push(...products)
+}
 
 export function getProductById(id: string) {
   return PRODUCT_MOCK_LIST.find(p => p.id === id)

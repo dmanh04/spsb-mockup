@@ -59,6 +59,7 @@ import AdminDashboardPage from './pages/admin/DashboardPage'
 import UserManagementPage from './pages/admin/UserManagementPage'
 import RolesPage from './pages/admin/RolesPage'
 import AdminProductManagementPage from './pages/admin/ProductManagementPage'
+import AdminProductFormPage from './pages/admin/ProductFormPage'
 import AdminReportsPage from './pages/admin/ReportsPage'
 import ServiceManagementPage from './pages/admin/ServiceManagementPage'
 import ShopsPage from './pages/admin/ShopsPage'
@@ -157,6 +158,8 @@ export default function App() {
           <Route path="roles" element={<RolesPage />} />
           <Route path="shops" element={<ShopsPage />} />
           <Route path="products" element={<AdminProductManagementPage />} />
+          <Route path="products/new" element={<AdminProductFormPage />} />
+          <Route path="products/:id/edit" element={<AdminProductFormPage />} />
           <Route path="services" element={<ServiceManagementPage />} />
           <Route path="bookings" element={<BookingManagementPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
