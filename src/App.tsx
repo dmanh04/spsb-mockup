@@ -53,6 +53,8 @@ import ShopHeadBookingsPage from './pages/shop-head/BookingsPage'
 import ShopHeadProductsPage from './pages/shop-head/ProductsPage'
 import ShopHeadOrdersPage from './pages/shop-head/OrdersPage'
 import ShopHeadVouchersPage from './pages/shop-head/VouchersPage'
+import ShopHeadBookingDetailPage from './pages/shop-head/BookingDetailPage'
+import ShopHeadVoucherFormPage from './pages/shop-head/VoucherFormPage'
 
 // Admin
 import AdminDashboardPage from './pages/admin/DashboardPage'
@@ -147,10 +149,12 @@ export default function App() {
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="leave-requests" element={<LeaveRequestsPage />} />
           <Route path="bookings" element={<ShopHeadBookingsPage />} />
+          <Route path="bookings/:id" element={<ShopHeadBookingDetailPage />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="products" element={<ShopHeadProductsPage />} />
           <Route path="orders" element={<ShopHeadOrdersPage />} />
           <Route path="vouchers" element={<ShopHeadVouchersPage />} />
+          <Route path="vouchers/new" element={<ShopHeadVoucherFormPage />} />
           <Route path="reports" element={<ShopHeadReportsPage />} />
         </Route>
 

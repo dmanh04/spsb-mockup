@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, Filter, CalendarCheck } from 'lucide-react'
 import { BOOKING_MOCK_LIST, STATUS_LABELS, STATUS_COLORS } from '@/data/bookingMockData'
 import { useAuthContext } from '@/auth/AuthContext'
@@ -85,13 +86,16 @@ export default function ShopHeadBookingsPage() {
               <th className="table-th">Phòng</th>
               <th className="table-th">Trạng thái</th>
               <th className="table-th text-right">Giá</th>
+              <th className="table-th text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {bookings.map(b => (
               <tr key={b.id} className="hover:bg-gray-50">
                 <td className="table-td">
-                  <div className="font-mono text-xs font-bold text-primary-600">{b.id}</div>
+                  <Link to={`/shop-head/bookings/${b.id}`} className="font-mono text-xs font-bold text-indigo-600 hover:underline">
+                    {b.id}
+                  </Link>
                   <div className="text-xs text-gray-400">{b.date}</div>
                 </td>
                 <td className="table-td">
@@ -101,9 +105,17 @@ export default function ShopHeadBookingsPage() {
                 <td className="table-td text-xs">{b.serviceName}</td>
                 <td className="table-td font-mono text-xs">{b.startTime}</td>
                 <td className="table-td text-xs">{b.assignedStaffName ?? <span className="text-orange-400">Chưa gán</span>}</td>
-                <td className="table-td text-xs">{b.roomName ?? <span className="text-orange-400">—</span>}</td>
+                <td className="table-td text-xs">{b.roomName ?? <span className="text-gray-400">—</span>}</td>
                 <td className="table-td"><span className={STATUS_COLORS[b.status]}>{STATUS_LABELS[b.status]}</span></td>
                 <td className="table-td text-right text-xs font-bold">{formatPrice(b.price)}</td>
+                <td className="table-td text-center">
+                  <Link 
+                    to={`/shop-head/bookings/${b.id}`} 
+                    className="text-xs font-extrabold text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50 px-2.5 py-1 rounded-xl"
+                  >
+                    Điều phối
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

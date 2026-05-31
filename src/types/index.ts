@@ -130,10 +130,12 @@ export interface Booking {
   statusHistory: BookingStatusHistory[]
   note: string
   checkinNote?: string
+  checkoutNote?: string
   serviceNote?: string
   beforePhotoUrl?: string
   afterPhotoUrl?: string
   invoiceId?: string
+  paymentMethod?: 'momo' | 'cash' | 'transfer' | 'card'
   createdAt: string
 }
 
@@ -188,6 +190,8 @@ export interface ShiftSwapRequest {
   reason: string
   status: LeaveRequestStatus
   requestedAt: string
+  reviewedBy?: string
+  reviewedAt?: string
 }
 
 // Room

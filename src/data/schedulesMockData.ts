@@ -10,7 +10,7 @@ const M = SHIFT_TEMPLATES[0]
 const A = SHIFT_TEMPLATES[1]
 const E = SHIFT_TEMPLATES[2]
 
-export const SCHEDULE_MOCK_LIST: StaffSchedule[] = [
+const INITIAL_SCHEDULE_MOCK_LIST: StaffSchedule[] = [
   // Tuần 02/06 – 08/06/2026
   // Trần Hùng (U020) — Groomer SH01
   { id: 'SC-001', staffId: 'U020', staffName: 'Trần Hùng', shopId: 'SH01', date: '2026-06-02', shiftId: M.id, shift: M, status: 'scheduled' },
@@ -37,3 +37,30 @@ export const SCHEDULE_MOCK_LIST: StaffSchedule[] = [
   { id: 'SC-033', staffId: 'U010', staffName: 'Nguyễn Thị Cẩm', shopId: 'SH01', date: '2026-06-05', shiftId: M.id, shift: M, status: 'scheduled' },
   { id: 'SC-034', staffId: 'U010', staffName: 'Nguyễn Thị Cẩm', shopId: 'SH01', date: '2026-06-06', shiftId: A.id, shift: A, status: 'scheduled' },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_schedules_data'
+
+const getStoredSchedules = (): StaffSchedule[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored schedules', e)
+      }
+    }
+  }
+  return INITIAL_SCHEDULE_MOCK_LIST
+}
+
+export const SCHEDULE_MOCK_LIST: StaffSchedule[] = getStoredSchedules()
+
+export const saveSchedules = (schedules: StaffSchedule[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(schedules))
+  }
+  SCHEDULE_MOCK_LIST.length = 0
+  SCHEDULE_MOCK_LIST.push(...schedules)
+}
+

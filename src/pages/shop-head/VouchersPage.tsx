@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Tag, Copy, Check, Eye, EyeOff } from 'lucide-react'
-import { VOUCHER_MOCK_LIST } from '@/data/voucherMockData'
+import { VOUCHER_MOCK_LIST, saveVouchers } from '@/data/voucherMockData'
 import { formatPrice } from '@/utils/format'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -20,10 +21,12 @@ export default function ShopHeadVouchersPage() {
   }
 
   function toggleStatus(id: string) {
-    setVouchers(prev => prev.map(v => v.id === id
+    const updated = vouchers.map(v => v.id === id
       ? { ...v, status: (v.status === 'active' ? 'inactive' : 'active') as typeof v.status }
       : v
-    ))
+    )
+    setVouchers(updated)
+    saveVouchers(updated)
   }
 
   const activeCount = vouchers.filter(v => v.status === 'active').length
@@ -36,7 +39,9 @@ export default function ShopHeadVouchersPage() {
           <h1 className="text-xl font-bold text-gray-900">Voucher Chi nhánh</h1>
           <p className="text-sm text-gray-500">{activeCount} voucher đang hoạt động · {totalUsed} lượt dùng</p>
         </div>
-        <button className="btn-primary"><Plus size={15} /> Tạo voucher mới</button>
+        <Link to="/shop-head/vouchers/new" className="btn-primary flex items-center gap-1.5 shadow-md shadow-indigo-200">
+          <Plus size={15} /> Tạo voucher mới
+        </Link>
       </div>
 
       {/* Summary cards */}

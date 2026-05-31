@@ -1,6 +1,6 @@
 import type { LeaveRequest, ShiftSwapRequest } from '@/types'
 
-export const LEAVE_REQUEST_MOCK_LIST: LeaveRequest[] = [
+const INITIAL_LEAVE_REQUEST_MOCK_LIST: LeaveRequest[] = [
   {
     id: 'LR-001', staffId: 'U022', staffName: 'Nguyễn Mai', shopId: 'SH01',
     dates: ['2026-06-02'], type: 'personal',
@@ -31,7 +31,7 @@ export const LEAVE_REQUEST_MOCK_LIST: LeaveRequest[] = [
   },
 ]
 
-export const SHIFT_SWAP_MOCK_LIST: ShiftSwapRequest[] = [
+const INITIAL_SHIFT_SWAP_MOCK_LIST: ShiftSwapRequest[] = [
   {
     id: 'SS-001', requesterId: 'U020', requesterName: 'Trần Hùng',
     targetStaffId: 'U022', targetStaffName: 'Nguyễn Mai',
@@ -40,3 +40,54 @@ export const SHIFT_SWAP_MOCK_LIST: ShiftSwapRequest[] = [
     status: 'pending', requestedAt: '2026-05-31 11:00',
   },
 ]
+
+const LOCAL_STORAGE_KEY_LEAVE = 'spsb_leave_requests_data'
+const LOCAL_STORAGE_KEY_SWAP = 'spsb_shift_swaps_data'
+
+const getStoredLeaves = (): LeaveRequest[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY_LEAVE)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored leave requests', e)
+      }
+    }
+  }
+  return INITIAL_LEAVE_REQUEST_MOCK_LIST
+}
+
+const getStoredSwaps = (): ShiftSwapRequest[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY_SWAP)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored shift swaps', e)
+      }
+    }
+  }
+  return INITIAL_SHIFT_SWAP_MOCK_LIST
+}
+
+export const LEAVE_REQUEST_MOCK_LIST: LeaveRequest[] = getStoredLeaves()
+export const SHIFT_SWAP_MOCK_LIST: ShiftSwapRequest[] = getStoredSwaps()
+
+export const saveLeaveRequests = (leaves: LeaveRequest[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY_LEAVE, JSON.stringify(leaves))
+  }
+  LEAVE_REQUEST_MOCK_LIST.length = 0
+  LEAVE_REQUEST_MOCK_LIST.push(...leaves)
+}
+
+export const saveShiftSwaps = (swaps: ShiftSwapRequest[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY_SWAP, JSON.stringify(swaps))
+  }
+  SHIFT_SWAP_MOCK_LIST.length = 0
+  SHIFT_SWAP_MOCK_LIST.push(...swaps)
+}
+
