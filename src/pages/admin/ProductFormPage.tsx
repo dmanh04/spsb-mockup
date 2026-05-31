@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ChevronLeft, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, Info, Image as ImageIcon, Tags
+  ChevronLeft, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, Info, Image as ImageIcon, Tags, Star
 } from 'lucide-react'
 import { PRODUCT_CATEGORIES, PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
 import type { Product, SKU, ProductAttribute } from '@/types'
@@ -25,7 +25,8 @@ export default function AdminProductFormPage() {
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<'active' | 'inactive'>('active')
   const [basePrice, setBasePrice] = useState<number>(0)
-  const [imageUrl, setImageUrl] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [newImageUrl, setNewImageUrl] = useState('')
   const [tagsInput, setTagsInput] = useState('')
 
   // 2. Dynamic Attributes State
@@ -55,7 +56,7 @@ export default function AdminProductFormPage() {
         setDescription(product.description)
         setStatus(product.status)
         setBasePrice(product.basePrice)
-        setImageUrl(product.images[0] || '')
+        setImages(product.images || [])
         setTagsInput(product.tags.join(', '))
 
         // Map attributes
@@ -94,7 +95,7 @@ export default function AdminProductFormPage() {
       setDescription('')
       setStatus('active')
       setBasePrice(100000)
-      setImageUrl('https://placehold.co/400x400/3B82F6/white?text=Product+Image')
+      setImages(['https://placehold.co/400x400/3B82F6/white?text=Product+Image'])
       setTagsInput('')
       setAttributes([])
       setSkuData({
@@ -166,10 +167,32 @@ export default function AdminProductFormPage() {
     )
   }, [attributes])
 
+  // Image Handlers
+  function addImage() {
+    const url = newImageUrl.trim()
+    if (!url) return
+    if (images.includes(url)) return
+    setImages([...images, url])
+    setNewImageUrl('')
+  }
+
+  function removeImage(idx: number) {
+    setImages(images.filter((_, i) => i !== idx))
+  }
+
+  function setPrimaryImage(idx: number) {
+    if (idx === 0) return
+    const updated = [...images]
+    const primary = updated.splice(idx, 1)[0]
+    updated.unshift(primary)
+    setImages(updated)
+  }
+
   // Auto-fill or adjust SKUs when combinations change
   useEffect(() => {
     const activeAttrs = attributes.filter(a => a.name.trim() !== '' && a.values.length > 0)
     const newSkuData: Record<string, any> = {}
+    const defaultSkuImage = images[0] || ''
 
     if (activeAttrs.length === 0) {
       // Default simple SKU
@@ -177,7 +200,7 @@ export default function AdminProductFormPage() {
         sku: isEditMode ? `SKU-${id}-DEFAULT` : 'SKU-NEW-DEFAULT',
         price: basePrice || 100000,
         stock: 10,
-        image: imageUrl || ''
+        image: defaultSkuImage
       }
     } else {
       skuCombinations.forEach(combo => {
@@ -194,13 +217,13 @@ export default function AdminProductFormPage() {
           sku: generatedSkuCode,
           price: basePrice || 100000,
           stock: 10,
-          image: imageUrl || ''
+          image: defaultSkuImage
         }
       })
     }
 
     setSkuData(newSkuData)
-  }, [skuCombinations, attributes, name, basePrice, imageUrl])
+  }, [skuCombinations, attributes, name, basePrice, images])
 
   // Update specific SKU row details
   function updateSkuDetail(key: string, field: 'sku' | 'price' | 'stock' | 'image', value: any) {
@@ -231,6 +254,10 @@ export default function AdminProductFormPage() {
     // Build the SKU array
     const skusList: SKU[] = []
     
+    const activeImages = images.map(img => img.trim()).filter(img => img.length > 0)
+    const finalImages = activeImages.length > 0 ? activeImages : ['https://placehold.co/400x400/3B82F6/white?text=Product']
+    const firstProductImage = finalImages[0]
+
     if (activeAttrs.length === 0) {
       // Default SKU
       const def = skuData['default'] || { sku: 'DEFAULT', price: basePrice, stock: 10, image: '' }
@@ -241,7 +268,7 @@ export default function AdminProductFormPage() {
         attributes: {},
         price: Number(def.price) || 0,
         stock: Number(def.stock) || 0,
-        image: def.image || imageUrl
+        image: def.image || firstProductImage
       })
     } else {
       skuCombinations.forEach((combo, idx) => {
@@ -261,7 +288,7 @@ export default function AdminProductFormPage() {
           attributes: attrMap,
           price: Number(detail?.price) || 0,
           stock: Number(detail?.stock) || 0,
-          image: detail?.image || imageUrl
+          image: detail?.image || firstProductImage
         })
       })
     }
@@ -284,7 +311,7 @@ export default function AdminProductFormPage() {
       basePrice: Number(basePrice) || 0,
       rating: isEditMode ? PRODUCT_MOCK_LIST.find(p => p.id === id)?.rating || 4.5 : 5.0,
       reviewCount: isEditMode ? PRODUCT_MOCK_LIST.find(p => p.id === id)?.reviewCount || 0 : 0,
-      images: [imageUrl.trim() || 'https://placehold.co/400x400/3B82F6/white?text=Product'],
+      images: finalImages,
       tags,
       createdAt: isEditMode ? PRODUCT_MOCK_LIST.find(p => p.id === id)?.createdAt || new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
     }
@@ -675,36 +702,100 @@ export default function AdminProductFormPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-gray-800 border-b border-gray-100 pb-3 flex items-center gap-2">
               <ImageIcon size={16} className="text-red-800" />
-              Hình ảnh Sản phẩm
+              Hình ảnh Sản phẩm ({images.length})
             </h3>
 
+            {/* Add new image URL */}
             <div className="space-y-1">
-              <label className="block font-bold text-gray-600">Đường dẫn ảnh chính (URL)</label>
-              <input
-                type="text"
-                placeholder="https://images.unsplash.com/..."
-                value={imageUrl}
-                onChange={e => setImageUrl(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
-              />
+              <label className="block font-bold text-gray-600">Thêm đường dẫn ảnh (URL)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nhập đường dẫn ảnh mới..."
+                  value={newImageUrl}
+                  onChange={e => setNewImageUrl(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addImage()
+                    }
+                  }}
+                  className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={addImage}
+                  className="px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-bold text-[11px]"
+                >
+                  Thêm
+                </button>
+              </div>
             </div>
 
-            {/* Image Box Preview */}
-            <div className="border border-gray-100 rounded-xl bg-gray-50/50 aspect-square flex items-center justify-center overflow-hidden p-2 select-none">
-              {imageUrl.trim() ? (
-                <img
-                  src={imageUrl}
-                  alt="Product preview"
-                  onError={(e) => {
-                    // Fallback on error
-                    (e.target as any).src = 'https://placehold.co/400x400/eeeeee/888888?text=Lỗi+ảnh'
-                  }}
-                  className="w-full h-full object-cover rounded-lg shadow-sm"
-                />
+            {/* Image List Preview Grid */}
+            <div className="space-y-2">
+              <span className="block font-bold text-gray-500 text-[10px]">Danh sách hình ảnh đã tải lên</span>
+              
+              {images.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl bg-gray-50 text-gray-400 space-y-1">
+                  <ImageIcon size={28} className="mx-auto text-gray-300" />
+                  <div className="font-semibold text-[10px]">Chưa có hình ảnh nào</div>
+                </div>
               ) : (
-                <div className="text-center text-gray-400 space-y-1.5">
-                  <ImageIcon size={32} className="mx-auto text-gray-300" />
-                  <div className="font-semibold text-[10px]">Chưa có hình ảnh preview</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {images.map((img, idx) => {
+                    const isPrimary = idx === 0
+                    return (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border border-gray-100 aspect-square bg-gray-50 flex items-center justify-center p-1">
+                        <img
+                          src={img}
+                          alt={`Product Image ${idx + 1}`}
+                          onError={e => {
+                            (e.target as any).src = 'https://placehold.co/400x400/eeeeee/888888?text=Lỗi+ảnh'
+                          }}
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                        
+                        {/* Overlay Controls */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 text-white">
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => removeImage(idx)}
+                              className="p-1 bg-red-800 hover:bg-red-900 rounded text-white transition-colors cursor-pointer"
+                              title="Xóa hình ảnh"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+
+                          <div className="w-full space-y-1">
+                            {!isPrimary ? (
+                              <button
+                                type="button"
+                                onClick={() => setPrimaryImage(idx)}
+                                className="w-full py-1 bg-white/20 hover:bg-white/40 rounded text-[9px] font-bold text-white transition-colors cursor-pointer uppercase tracking-wider"
+                              >
+                                Đặt làm ảnh chính
+                              </button>
+                            ) : (
+                              <div className="w-full py-1 bg-amber-500 text-gray-950 font-extrabold text-[9px] rounded text-center uppercase tracking-wider flex items-center justify-center gap-0.5">
+                                <Star size={9} className="fill-gray-950 text-gray-950" />
+                                Ảnh đại diện
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Top corner badge (Visible without hover if Primary) */}
+                        {isPrimary && (
+                          <div className="absolute top-1.5 left-1.5 p-1 bg-amber-500 text-gray-950 rounded-md shadow-md" title="Ảnh đại diện">
+                            <Star size={10} className="fill-gray-950 text-gray-950" />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
