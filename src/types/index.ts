@@ -148,6 +148,14 @@ export interface Booking {
   afterPhotoUrl?: string
   invoiceId?: string
   paymentMethod?: 'momo' | 'cash' | 'transfer' | 'card'
+  boardingLogs?: any[]
+  boardingDiet?: {
+    foodType: string
+    feedTimes: number
+    portionWeight: number
+    waterFrequency: string
+    allergies?: string
+  }
   createdAt: string
 }
 

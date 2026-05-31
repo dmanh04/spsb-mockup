@@ -98,6 +98,32 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     note: '', createdAt: '2026-05-31 09:00',
   },
   {
+    id: 'BK-008',
+    customerId: 'U002', customerName: 'Trần Thị Bình', customerPhone: '0912345678',
+    petId: 'PET002', petName: 'Luna', petBreed: 'Persian Cat',
+    serviceId: 'SV_BOARDING', serviceName: 'Dịch vụ Khách sạn & Nội trú Thú cưng (Pet Boarding)',
+    shopId: 'SH01', assignedStaffId: 'U021', assignedStaffName: 'Lê Lan',
+    roomId: 'R011', roomName: 'Lưu trú Premium VIP Suite',
+    date: '2026-05-31', startTime: '08:00', endTime: '18:00', duration: 600, price: 750000,
+    status: 'checked_in',
+    statusHistory: [
+      { status: 'pending', changedBy: 'Trần Thị Bình', changedAt: '2026-05-30 10:00' },
+      { status: 'confirmed', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-30 11:30', note: 'Đã xếp phòng Lưu trú VIP và Lê Lan chăm sóc' },
+      { status: 'checked_in', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-31 08:15', note: ' Luna đã nhận phòng. Mang theo hạt cá hồi riêng, tính tình nhút nhát.' }
+    ],
+    note: 'Luna cần ăn hạt cá hồi riêng mang theo, bé hơi nhát',
+    checkinNote: 'Luna đã nhận phòng, lông da sạch sẽ, hơi lo lắng khi mới đến.',
+    beforePhotoUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&auto=format&fit=crop&q=60',
+    boardingDiet: {
+      foodType: 'Hạt cá hồi hữu cơ (Chủ mang theo)',
+      feedTimes: 2,
+      portionWeight: 150,
+      waterFrequency: 'Mỗi 4 tiếng thay nước mới',
+      allergies: 'Dị ứng thịt gà, tuyệt đối không ăn thịt gà ⚠️'
+    },
+    createdAt: '2026-05-30 10:00',
+  },
+  {
     id: 'BK-005',
     customerId: 'U002', customerName: 'Trần Thị Bình', customerPhone: '0912345678',
     petId: 'PET002', petName: 'Luna', petBreed: 'Persian Cat',
@@ -158,7 +184,19 @@ const getStoredBookings = (): Booking[] => {
     const data = localStorage.getItem(LOCAL_STORAGE_KEY)
     if (data) {
       try {
-        return JSON.parse(data)
+        const parsed = JSON.parse(data) as Booking[]
+        let merged = [...parsed]
+        let changed = false
+        INITIAL_BOOKING_MOCK_LIST.forEach(initB => {
+          if (!merged.some(b => b.id === initB.id)) {
+            merged.push(initB)
+            changed = true
+          }
+        })
+        if (changed) {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged))
+        }
+        return merged
       } catch (e) {
         console.error('Failed to parse stored bookings', e)
       }

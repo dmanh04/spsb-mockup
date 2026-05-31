@@ -4,6 +4,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   { id: 'RC01', name: 'Phòng Grooming', color: '#3B82F6', shopId: 'SH01' },
   { id: 'RC02', name: 'Phòng Spa', color: '#8B5CF6', shopId: 'SH01' },
   { id: 'RC03', name: 'Phòng Tắm', color: '#10B981', shopId: 'SH01' },
+  { id: 'RC_BOARDING', name: 'Phòng Lưu trú / Nội trú', color: '#F59E0B', shopId: 'SH01' },
   { id: 'RC04', name: 'Phòng Grooming', color: '#3B82F6', shopId: 'SH02' },
   { id: 'RC05', name: 'Phòng Spa', color: '#8B5CF6', shopId: 'SH02' },
 ]
@@ -15,6 +16,8 @@ const INITIAL_ROOM_MOCK_LIST: Room[] = [
   { id: 'R004', name: 'Spa Premium 1', categoryId: 'RC02', categoryName: 'Phòng Spa', shopId: 'SH01', capacity: 1, status: 'occupied', equipment: ['Bồn tắm xông', 'Máy massage', 'Đèn UV'] },
   { id: 'R005', name: 'Spa Premium 2', categoryId: 'RC02', categoryName: 'Phòng Spa', shopId: 'SH01', capacity: 1, status: 'available', equipment: ['Bồn tắm xông', 'Máy massage'] },
   { id: 'R006', name: 'Tắm cơ bản 1', categoryId: 'RC03', categoryName: 'Phòng Tắm', shopId: 'SH01', capacity: 2, status: 'available', equipment: ['Bồn tắm', 'Máy sấy cơ bản'] },
+  { id: 'R010', name: 'Lưu trú Standard Suite', categoryId: 'RC_BOARDING', categoryName: 'Phòng Lưu trú / Nội trú', shopId: 'SH01', capacity: 4, status: 'available', equipment: ['Chuồng đệm êm', 'Bát tự động', 'Hệ thống khử mùi'] },
+  { id: 'R011', name: 'Lưu trú Premium VIP Suite', categoryId: 'RC_BOARDING', categoryName: 'Phòng Lưu trú / Nội trú', shopId: 'SH01', capacity: 2, status: 'available', equipment: ['Camera giám sát 24/7', 'Điều hòa nhiệt độ', 'Đệm Memory Foam'] },
   { id: 'R007', name: 'Grooming Q3-1', categoryId: 'RC04', categoryName: 'Phòng Grooming', shopId: 'SH02', capacity: 1, status: 'available', equipment: ['Bàn grooming', 'Máy sấy'] },
   { id: 'R008', name: 'Grooming Q3-2', categoryId: 'RC04', categoryName: 'Phòng Grooming', shopId: 'SH02', capacity: 1, status: 'maintenance', equipment: ['Bàn grooming'] },
   { id: 'R009', name: 'Spa Q3-1', categoryId: 'RC05', categoryName: 'Phòng Spa', shopId: 'SH02', capacity: 1, status: 'available', equipment: ['Bồn tắm xông', 'Máy massage'] },

@@ -30,6 +30,12 @@ const AFTER_PHOTOS = [
   'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&auto=format&fit=crop&q=60', // clean poodle with bow
 ]
 
+const BOARDING_PHOTOS = [
+  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&auto=format&fit=crop&q=60', // puppy playing
+  'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=400&auto=format&fit=crop&q=60', // cat resting
+  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&auto=format&fit=crop&q=60', // happy dog
+]
+
 export default function ShopHeadBookingDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -48,8 +54,124 @@ export default function ShopHeadBookingDetailPage() {
   const [afterPhotoIdx, setAfterPhotoIdx] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'cash' | 'transfer' | 'card'>('momo')
 
+  // Boarding care checklist states
+  const [boardingLogs, setBoardingLogs] = useState<any[]>(() => {
+    return rawBooking?.boardingLogs ?? [
+      {
+        date: '30/05/2026',
+        feedMorning: true,
+        feedEvening: true,
+        walkMorning: true,
+        walkEvening: true,
+        hygieneCleared: true,
+        temperature: '38.6',
+        ownerUpdateText: 'Luna thích nghi rất tốt, đã làm quen với KTV Lê Lan. Bé ăn khỏe và ngủ ngoan trên đệm.',
+        photoUrl: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&auto=format&fit=crop&q=60',
+        updatedAt: '2026-05-30 18:30',
+      }
+    ]
+  })
+
+  const [feedMorning, setFeedMorning] = useState(false)
+  const [feedEvening, setFeedEvening] = useState(false)
+  const [walkMorning, setWalkMorning] = useState(false)
+  const [walkEvening, setWalkEvening] = useState(false)
+  const [hygieneCleared, setHygieneCleared] = useState(false)
+  const [boardingTemp, setBoardingTemp] = useState('38.5')
+  const [boardingOwnerNote, setBoardingOwnerNote] = useState('')
+  const [boardingPhotoIdx, setBoardingPhotoIdx] = useState<number | null>(null)
+
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+
+  // Boarding Diet States
+  const [dietFoodType, setDietFoodType] = useState(rawBooking?.boardingDiet?.foodType ?? 'Hạt Royal Canin & Pate cao cấp')
+  const [dietFeedTimes, setDietFeedTimes] = useState(rawBooking?.boardingDiet?.feedTimes ?? 2)
+  const [dietPortionWeight, setDietPortionWeight] = useState(rawBooking?.boardingDiet?.portionWeight ?? 150)
+  const [dietWaterFrequency, setDietWaterFrequency] = useState(rawBooking?.boardingDiet?.waterFrequency ?? 'Thay nước lọc RO mỗi 4 tiếng')
+  const [dietAllergies, setDietAllergies] = useState(rawBooking?.boardingDiet?.allergies ?? '')
+  const [isEditingDiet, setIsEditingDiet] = useState(false)
+
+  function handleSaveDiet() {
+    if (!rawBooking) return
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16)
+    const updatedBookings = bookings.map(b => {
+      if (b.id === rawBooking.id) {
+        return {
+          ...b,
+          boardingDiet: {
+            foodType: dietFoodType,
+            feedTimes: Number(dietFeedTimes),
+            portionWeight: Number(dietPortionWeight),
+            waterFrequency: dietWaterFrequency,
+            allergies: dietAllergies || undefined
+          },
+          statusHistory: [
+            ...(b.statusHistory || []),
+            { status: b.status, changedBy: 'Shop Head', changedAt: nowStr, note: 'Cập nhật chế độ ăn uống & dinh dưỡng nội trú' }
+          ]
+        }
+      }
+      return b
+    })
+    setBookings(updatedBookings)
+    saveBookings(updatedBookings)
+    setIsEditingDiet(false)
+    setSuccessMsg('Đã cập nhật chế độ dinh dưỡng thành công!')
+    setTimeout(() => setSuccessMsg(''), 3000)
+  }
+
+  function handleAddBoardingLog(e: React.FormEvent) {
+    e.preventDefault()
+    if (!rawBooking) return
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16)
+    const newLog = {
+      date: new Date().toLocaleDateString('vi-VN'),
+      feedMorning,
+      feedEvening,
+      walkMorning,
+      walkEvening,
+      hygieneCleared,
+      temperature: boardingTemp,
+      ownerUpdateText: boardingOwnerNote || 'Bé ăn ngủ tốt, tinh thần vui tươi hoạt bát.',
+      photoUrl: boardingPhotoIdx !== null ? BOARDING_PHOTOS[boardingPhotoIdx] : undefined,
+      updatedAt: nowStr
+    }
+
+    const updatedLogs = [...boardingLogs, newLog]
+    setBoardingLogs(updatedLogs)
+
+    // Save in bookings list
+    const updatedBookings = bookings.map(b => {
+      if (b.id === rawBooking.id) {
+        return {
+          ...b,
+          boardingLogs: updatedLogs,
+          statusHistory: [
+            ...(b.statusHistory || []),
+            { status: b.status, changedBy: 'Shop Head', changedAt: nowStr, note: `Cập nhật nhật ký lưu trú ngày ${newLog.date}` }
+          ]
+        }
+      }
+      return b
+    })
+
+    setBookings(updatedBookings)
+    saveBookings(updatedBookings)
+
+    // Reset current day form
+    setFeedMorning(false)
+    setFeedEvening(false)
+    setWalkMorning(false)
+    setWalkEvening(false)
+    setHygieneCleared(false)
+    setBoardingTemp('38.5')
+    setBoardingOwnerNote('')
+    setBoardingPhotoIdx(null)
+
+    setSuccessMsg('Đã cập nhật nhật ký chăm sóc nội trú hôm nay thành công!')
+    setTimeout(() => setSuccessMsg(''), 3000)
+  }
 
   if (!rawBooking) {
     return (
@@ -92,9 +214,10 @@ export default function ShopHeadBookingDetailPage() {
     )
   }
 
-  // Filter Rooms based on Service Category (recommend Grooming Rooms for cut services, Spa Rooms for spa services)
+  // Filter Rooms based on Service Category (recommend Grooming Rooms for cut services, Spa Rooms for spa services, Boarding Suites for pet boarding)
+  const isBoarding = booking.serviceName.toLowerCase().includes('nội trú') || booking.serviceName.toLowerCase().includes('boarding') || booking.serviceName.toLowerCase().includes('khách sạn')
   const isSpaService = booking.serviceName.toLowerCase().includes('spa')
-  const recommendedCategory = isSpaService ? 'RC02' : 'RC01' // RC02 = Spa, RC01 = Grooming
+  const recommendedCategory = isBoarding ? 'RC_BOARDING' : (isSpaService ? 'RC02' : 'RC01')
   const shopRooms = ROOM_MOCK_LIST.filter(r => r.shopId === shopId)
 
   // Handle Dispatch Allocation saving
@@ -480,6 +603,312 @@ export default function ShopHeadBookingDetailPage() {
                   🏢 {booking.roomName ?? 'Chưa gán phòng'}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* PET BOARDING DIET & NUTRITION MANAGEMENT */}
+          {isBoarding && (
+            <div className="bg-white rounded-3xl border border-gray-150 p-6 shadow-sm space-y-4">
+              <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
+                <h2 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
+                  🍽️ Chế độ Dinh dưỡng & Thực đơn ăn uống
+                </h2>
+                <button
+                  onClick={() => setIsEditingDiet(!isEditingDiet)}
+                  className="text-xs font-black text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-100/80 px-3 py-1 rounded-xl transition-all shadow-sm flex items-center gap-1"
+                >
+                  {isEditingDiet ? 'Hủy chỉnh sửa' : '✏️ Điều chỉnh thực đơn'}
+                </button>
+              </div>
+
+              {isEditingDiet ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-normal">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Loại thức ăn chuyên dụng</label>
+                    <input 
+                      type="text" 
+                      className="form-input py-1.5 px-3 rounded-xl bg-gray-50 border-gray-200 w-full" 
+                      value={dietFoodType} 
+                      onChange={e => setDietFoodType(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Số bữa / ngày</label>
+                      <input 
+                        type="number" 
+                        className="form-input py-1.5 px-3 rounded-xl bg-gray-50 border-gray-200 w-full" 
+                        value={dietFeedTimes} 
+                        onChange={e => setDietFeedTimes(Number(e.target.value))} 
+                        min={1} 
+                        max={6} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Định lượng (g / bữa)</label>
+                      <input 
+                        type="number" 
+                        className="form-input py-1.5 px-3 rounded-xl bg-gray-50 border-gray-200 w-full" 
+                        value={dietPortionWeight} 
+                        onChange={e => setDietPortionWeight(Number(e.target.value))} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Tần suất thay nước uống</label>
+                    <input 
+                      type="text" 
+                      className="form-input py-1.5 px-3 rounded-xl bg-gray-50 border-gray-200 w-full" 
+                      value={dietWaterFrequency} 
+                      onChange={e => setDietWaterFrequency(e.target.value)} 
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-rose-500 uppercase tracking-wide block">Cảnh báo dị ứng & Kiêng cữ</label>
+                    <input 
+                      type="text" 
+                      className="form-input py-1.5 px-3 rounded-xl bg-gray-50 border-rose-200 focus:border-rose-450 text-rose-800 w-full" 
+                      value={dietAllergies} 
+                      onChange={e => setDietAllergies(e.target.value)} 
+                      placeholder="Nhập chất dị ứng nếu có..." 
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-gray-50">
+                    <button 
+                      onClick={() => setIsEditingDiet(false)}
+                      className="btn-secondary py-1.5 px-3 text-xs rounded-xl"
+                    >
+                      Bỏ qua
+                    </button>
+                    <button 
+                      onClick={handleSaveDiet}
+                      className="btn-primary py-1.5 px-4 text-xs rounded-xl shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold"
+                    >
+                      Lưu cấu hình thực đơn
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5 text-xs leading-normal">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-indigo-50/20 p-4 rounded-2xl border border-indigo-100/50">
+                    <div>
+                      <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider block">Loại thức ăn</span>
+                      <strong className="text-gray-900 text-[12px]">{dietFoodType}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider block">Bữa ăn trong ngày</span>
+                      <strong className="text-gray-900 text-[12px]">{dietFeedTimes} bữa/ngày</strong>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider block">Định lượng / bữa</span>
+                      <strong className="text-gray-900 text-[12px]">{dietPortionWeight}g</strong>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider block">Chế độ nước</span>
+                      <strong className="text-gray-900 text-[12px]">{dietWaterFrequency}</strong>
+                    </div>
+                  </div>
+
+                  {dietAllergies ? (
+                    <div className="bg-rose-50 border border-rose-150 rounded-2xl p-3.5 flex items-start gap-2.5 text-rose-800">
+                      <AlertTriangle size={15} className="text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                      <div>
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-wider block">⚠️ Cảnh báo Dị ứng & Lưu ý Đặc biệt</span>
+                        <p className="font-extrabold mt-0.5 text-xs text-rose-900">{dietAllergies}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3.5 flex items-start gap-2 text-emerald-800 font-semibold">
+                      <CheckCircle size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Thú cưng không có tiền sử dị ứng thực phẩm ghi nhận. Sẵn sàng ăn theo chế độ tiêu chuẩn chi nhánh.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PET BOARDING DAILY MONITORING LOGS (NỘI TRÚ) */}
+          {isBoarding && ['checked_in', 'in_progress', 'completed', 'paid'].includes(booking.status) && (
+            <div className="bg-white rounded-3xl border border-gray-150 p-6 shadow-sm space-y-5">
+              <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
+                <h2 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
+                  🏨 Nhật ký Chăm sóc Nội trú Hàng ngày
+                </h2>
+                <span className="bg-amber-100 border border-amber-300 text-amber-800 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse-subtle">
+                  Pet Boarding Active
+                </span>
+              </div>
+
+              {/* Render existing days */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
+                  Nhật ký đã ghi nhận ({boardingLogs.length} ngày)
+                </span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {boardingLogs.map((log, idx) => (
+                    <div key={idx} className="bg-indigo-50/30 border border-indigo-150/40 rounded-2xl p-3.5 space-y-2.5">
+                      <div className="flex justify-between items-center border-b border-indigo-100/50 pb-1.5">
+                        <span className="font-extrabold text-indigo-950 text-xs flex items-center gap-1">📅 Ngày lưu: {log.date}</span>
+                        <span className="text-[8px] text-gray-400 font-bold font-mono">{log.updatedAt}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] text-gray-650 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${log.feedMorning ? 'bg-emerald-500' : 'bg-gray-300'}`}>✓</span>
+                          <span>Ăn sáng 150g</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${log.feedEvening ? 'bg-emerald-500' : 'bg-gray-300'}`}>✓</span>
+                          <span>Ăn chiều 150g</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${log.walkMorning ? 'bg-emerald-500' : 'bg-gray-300'}`}>✓</span>
+                          <span>Đi dạo sáng</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${log.walkEvening ? 'bg-emerald-500' : 'bg-gray-300'}`}>✓</span>
+                          <span>Đi dạo chiều</span>
+                        </div>
+                        <div className="flex items-center gap-1 col-span-2">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${log.hygieneCleared ? 'bg-emerald-500' : 'bg-gray-300'}`}>✓</span>
+                          <span>Dọn vệ sinh & Đo nhiệt ({log.temperature}°C)</span>
+                        </div>
+                      </div>
+
+                      {log.ownerUpdateText && (
+                        <div className="text-[10px] leading-relaxed italic bg-white/60 p-2 rounded-xl border border-indigo-50 text-indigo-900">
+                          <strong>Báo cáo chủ nuôi:</strong> "{log.ownerUpdateText}"
+                        </div>
+                      )}
+
+                      {log.photoUrl && (
+                        <div className="w-full h-20 rounded-xl overflow-hidden border border-indigo-100">
+                          <img src={log.photoUrl} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form to add today's log */}
+              <form onSubmit={handleAddBoardingLog} className="pt-4 border-t border-gray-100 space-y-4">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
+                  Đăng ký nhật ký chăm sóc hôm nay (Gửi tức thì cho Chủ nuôi)
+                </span>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-gray-50/50 p-4 rounded-2xl border border-gray-150">
+                  <label className="flex items-center gap-2 font-bold text-gray-700 select-none cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={feedMorning}
+                      onChange={e => setFeedMorning(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Cho ăn sáng (150g)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-bold text-gray-700 select-none cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={feedEvening}
+                      onChange={e => setFeedEvening(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Cho ăn chiều (150g)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-bold text-gray-700 select-none cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={walkMorning}
+                      onChange={e => setWalkMorning(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Đi dạo (Ca sáng)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-bold text-gray-700 select-none cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={walkEvening}
+                      onChange={e => setWalkEvening(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Đi dạo (Ca chiều)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-bold text-gray-700 select-none cursor-pointer col-span-2 md:col-span-1">
+                    <input 
+                      type="checkbox" 
+                      checked={hygieneCleared}
+                      onChange={e => setHygieneCleared(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Khử trùng & Dọn khay cát</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Temperature */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide">Đo thân nhiệt Pet (°C)</label>
+                    <input 
+                      type="text" 
+                      className="form-input text-xs rounded-xl py-2 px-3 focus:border-indigo-500"
+                      value={boardingTemp}
+                      onChange={e => setBoardingTemp(e.target.value)}
+                      placeholder="Ví dụ: 38.5"
+                    />
+                  </div>
+
+                  {/* Owner Text */}
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide">Nhắn cho chủ nuôi</label>
+                    <input 
+                      type="text" 
+                      className="form-input text-xs rounded-xl py-2 px-3 focus:border-indigo-500"
+                      value={boardingOwnerNote}
+                      onChange={e => setBoardingOwnerNote(e.target.value)}
+                      placeholder="Luna ăn ngoan, hơi nhớ nhà..."
+                    />
+                  </div>
+                </div>
+
+                {/* Owner Photo */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide block">Gửi kèm ảnh hoạt động hôm nay</label>
+                  <div className="flex gap-2">
+                    {BOARDING_PHOTOS.map((url, idx) => (
+                      <button 
+                        key={idx}
+                        type="button"
+                        onClick={() => setBoardingPhotoIdx(idx)}
+                        className={`w-20 h-16 rounded-xl border-2 overflow-hidden transition-all shrink-0 ${
+                          boardingPhotoIdx === idx ? 'border-indigo-600 scale-105 shadow-md shadow-indigo-200' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1.5">
+                  <button 
+                    type="submit"
+                    className="btn-primary py-2 px-4 text-xs font-bold rounded-2xl flex items-center gap-1 shadow-md shadow-indigo-100"
+                  >
+                    <CheckCircle size={13} /> Lưu nhật ký chăm sóc hôm nay
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
