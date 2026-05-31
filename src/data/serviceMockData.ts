@@ -1,6 +1,6 @@
 import type { Service } from '@/types'
 
-export const SERVICE_MOCK_LIST: Service[] = [
+const INITIAL_SERVICE_MOCK_LIST: Service[] = [
   {
     id: 'SV001', name: 'Cắt tỉa & Tắm cơ bản', category: 'grooming',
     description: 'Tắm sạch, sấy khô, cắt tỉa lông theo yêu cầu cơ bản, vệ sinh tai và cắt móng.',
@@ -86,6 +86,32 @@ export const SERVICE_MOCK_LIST: Service[] = [
     status: 'active', image: 'https://placehold.co/300x200/EF4444/white?text=Checkup',
   },
 ]
+
+const LOCAL_STORAGE_KEY = 'spsb_services_data'
+
+const getStoredServices = (): Service[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored services', e)
+      }
+    }
+  }
+  return INITIAL_SERVICE_MOCK_LIST
+}
+
+export const SERVICE_MOCK_LIST: Service[] = getStoredServices()
+
+export const saveServices = (services: Service[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(services))
+  }
+  SERVICE_MOCK_LIST.length = 0
+  SERVICE_MOCK_LIST.push(...services)
+}
 
 export const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   grooming: 'Cắt tỉa', bathing: 'Tắm rửa', spa: 'Spa',

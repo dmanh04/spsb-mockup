@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Edit, Eye, EyeOff, Search, Filter, Stethoscope, Home, Scissors, Activity, ChevronDown, CheckCircle2 } from 'lucide-react'
-import { SERVICE_MOCK_LIST, SERVICE_CATEGORY_LABELS } from '@/data/serviceMockData'
+import { SERVICE_MOCK_LIST, SERVICE_CATEGORY_LABELS, saveServices } from '@/data/serviceMockData'
+import type { Service } from '@/types'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
 
@@ -32,13 +34,16 @@ const TABS = [
 ]
 
 export default function ServiceManagementPage() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [services, setServices] = useState(SERVICE_MOCK_LIST)
 
   function toggleStatus(id: string) {
-    setServices(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'active' ? 'inactive' : 'active' } : s))
+    const updated: Service[] = services.map(s => s.id === id ? { ...s, status: s.status === 'active' ? 'inactive' as const : 'active' as const } : s)
+    setServices(updated)
+    saveServices(updated)
   }
 
   const filteredServices = useMemo(() => {
@@ -81,7 +86,10 @@ export default function ServiceManagementPage() {
           <button className="p-2.5 bg-white border border-gray-200 rounded-2xl text-gray-600 hover:bg-gray-50 transition-colors shadow-sm">
             <Filter size={18} />
           </button>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl font-semibold shadow-lg shadow-indigo-200 transition-all active:scale-95">
+          <button 
+            onClick={() => navigate('/admin/services/new')}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl font-semibold shadow-lg shadow-indigo-200 transition-all active:scale-95"
+          >
             <Plus size={18} /> <span className="hidden sm:inline">Thêm dịch vụ</span>
           </button>
         </div>
@@ -185,7 +193,10 @@ export default function ServiceManagementPage() {
                   >
                     Bảng giá <ChevronDown size={16} className={`transition-transform duration-300 ${expanded === svc.id ? 'rotate-180' : ''}`} />
                   </button>
-                  <button className="p-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-xl transition-colors">
+                  <button 
+                    onClick={() => navigate(`/admin/services/${svc.id}/edit`)}
+                    className="p-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-xl transition-colors"
+                  >
                     <Edit size={18} />
                   </button>
                   <button 
