@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, Shield, Store, ShoppingBag,
+  LayoutDashboard, Users, Shield, Store, ShoppingBag, Layers,
   Scissors, CalendarCheck, Warehouse, Tag, BarChart3, Bot, Settings,
 } from 'lucide-react'
 import BaseLayout, { type NavItem } from './_BaseLayout'
@@ -10,6 +10,7 @@ const NAV: NavItem[] = [
   { to: '/admin/roles', label: 'Phân quyền', icon: Shield },
   { to: '/admin/shops', label: 'Chi nhánh', icon: Store },
   { to: '/admin/products', label: 'Sản phẩm', icon: ShoppingBag },
+  { to: '/admin/product-categories', label: 'Danh mục SP', icon: Layers },
   { to: '/admin/services', label: 'Dịch vụ', icon: Scissors },
   { to: '/admin/bookings', label: 'Booking', icon: CalendarCheck },
   { to: '/admin/inventory', label: 'Tồn kho', icon: Warehouse },

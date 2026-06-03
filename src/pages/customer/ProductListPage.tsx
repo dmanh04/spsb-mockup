@@ -5,12 +5,35 @@ import { PRODUCT_MOCK_LIST, PRODUCT_CATEGORIES } from '@/data/productMockData'
 import { formatPrice } from '@/utils/format'
 
 export default function ProductListPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price_asc' | 'price_desc' | 'rating'>('rating')
 
+  // Helper to count products dynamically
+  const getCategoryCount = (catId: string | null, isParent: boolean) => {
+    if (!catId) return PRODUCT_MOCK_LIST.length
+    if (isParent) {
+      const subNames = PRODUCT_CATEGORIES.filter(c => c.parentId === catId).map(c => c.name)
+      return PRODUCT_MOCK_LIST.filter(p => subNames.includes(p.category)).length
+    } else {
+      const sub = PRODUCT_CATEGORIES.find(c => c.id === catId)
+      return sub ? PRODUCT_MOCK_LIST.filter(p => p.category === sub.name).length : 0
+    }
+  }
+
   const filtered = PRODUCT_MOCK_LIST
-    .filter(p => !selectedCategory || p.category === PRODUCT_CATEGORIES.find(c => c.id === selectedCategory)?.name)
+    .filter(p => {
+      if (selectedSubId) {
+        const sub = PRODUCT_CATEGORIES.find(c => c.id === selectedSubId)
+        return sub ? p.category === sub.name : true
+      }
+      if (selectedParentId) {
+        const subNames = PRODUCT_CATEGORIES.filter(c => c.parentId === selectedParentId).map(c => c.name)
+        return subNames.includes(p.category)
+      }
+      return true
+    })
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.brand.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === 'price_asc') return a.basePrice - b.basePrice
@@ -26,24 +49,63 @@ export default function ProductListPage() {
         <p className="text-sm text-gray-500 mt-0.5">{PRODUCT_MOCK_LIST.length} sản phẩm</p>
       </div>
 
-      {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${!selectedCategory ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}
-        >
-          Tất cả
-        </button>
-        {PRODUCT_CATEGORIES.map(cat => (
+      {/* Categories Filtering */}
+      <div className="space-y-3">
+        {/* Parent Categories */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${selectedCategory === cat.id ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}
+            onClick={() => {
+              setSelectedParentId(null)
+              setSelectedSubId(null)
+            }}
+            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${!selectedParentId ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}
           >
-            <span>{cat.icon}</span> {cat.name}
-            <span className={`text-xs ${selectedCategory === cat.id ? 'text-blue-200' : 'text-gray-400'}`}>({cat.count})</span>
+            Tất cả ({PRODUCT_MOCK_LIST.length})
           </button>
-        ))}
+          {PRODUCT_CATEGORIES.filter(c => c.parentId === null).map(cat => {
+            const count = getCategoryCount(cat.id, true)
+            const isSel = selectedParentId === cat.id
+            return (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setSelectedParentId(isSel ? null : cat.id)
+                  setSelectedSubId(null)
+                }}
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${isSel ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}
+              >
+                <span>{cat.icon}</span> {cat.name}
+                <span className={`text-xs ${isSel ? 'text-blue-100' : 'text-gray-400'}`}>({count})</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Subcategories (only displayed if a parent category is selected) */}
+        {selectedParentId && (
+          <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none bg-gray-50 p-2 rounded-xl border border-gray-150 animate-fadeIn">
+            <button
+              onClick={() => setSelectedSubId(null)}
+              className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${!selectedSubId ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+            >
+              Tất cả con ({getCategoryCount(selectedParentId, true)})
+            </button>
+            {PRODUCT_CATEGORIES.filter(c => c.parentId === selectedParentId).map(cat => {
+              const count = getCategoryCount(cat.id, false)
+              const isSel = selectedSubId === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedSubId(isSel ? null : cat.id)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${isSel ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}
+                >
+                  <span>{cat.icon}</span> {cat.name}
+                  <span className={`text-[10px] ${isSel ? 'text-gray-300' : 'text-gray-400'}`}>({count})</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Search + Sort */}
@@ -72,7 +134,7 @@ export default function ProductListPage() {
       {/* Results count */}
       <p className="text-sm text-gray-500">
         <span className="font-semibold text-gray-700">{filtered.length}</span> sản phẩm
-        {selectedCategory && ` trong danh mục này`}
+        {(selectedParentId || selectedSubId) && ` trong danh mục này`}
         {search && ` phù hợp với "${search}"`}
       </p>
 

@@ -48,6 +48,16 @@ export interface PermissionSet {
 
 export type PermissionMatrix = Record<Role, Record<Module, PermissionSet>>
 
+export interface ProductCategory {
+  id: string
+  name: string
+  parentId: string | null // null indicates it is a top-level parent category
+  icon: string           // Emoji icon
+  description?: string
+  sortOrder: number      // Used to persist custom ordering
+  createdAt: string
+}
+
 // Product & SKU
 export interface ProductAttribute {
   name: string

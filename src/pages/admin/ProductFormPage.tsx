@@ -22,6 +22,8 @@ export default function AdminProductFormPage() {
   const [name, setName] = useState('')
   const [brand, setBrand] = useState('')
   const [category, setCategory] = useState('')
+  const [selectedParentId, setSelectedParentId] = useState('')
+  const [selectedSubId, setSelectedSubId] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<'active' | 'inactive'>('active')
   const [basePrice, setBasePrice] = useState<number>(0)
@@ -45,14 +47,39 @@ export default function AdminProductFormPage() {
   const [toastMsg, setToastMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Load product data for editing
+  // Load product data for editing and synchronize categories selection
+  useEffect(() => {
+    if (selectedSubId) {
+      const sub = PRODUCT_CATEGORIES.find(c => c.id === selectedSubId)
+      if (sub) {
+        setCategory(sub.name)
+      }
+    } else if (selectedParentId) {
+      const parent = PRODUCT_CATEGORIES.find(c => c.id === selectedParentId)
+      if (parent) {
+        setCategory(parent.name)
+      }
+    } else {
+      setCategory('')
+    }
+  }, [selectedParentId, selectedSubId])
+
+  const handleParentChange = (parentId: string) => {
+    setSelectedParentId(parentId)
+    const subs = PRODUCT_CATEGORIES.filter(c => c.parentId === parentId)
+    if (subs.length > 0) {
+      setSelectedSubId(subs[0].id)
+    } else {
+      setSelectedSubId('')
+    }
+  }
+
   useEffect(() => {
     if (isEditMode && id) {
       const product = PRODUCT_MOCK_LIST.find(p => p.id === id)
       if (product) {
         setName(product.name)
         setBrand(product.brand)
-        setCategory(product.category)
         setDescription(product.description)
         setStatus(product.status)
         setBasePrice(product.basePrice)
@@ -66,6 +93,19 @@ export default function AdminProductFormPage() {
           valueInput: ''
         }))
         setAttributes(mappedAttrs)
+
+        // Find category details
+        const catObj = PRODUCT_CATEGORIES.find(c => c.name === product.category)
+        if (catObj) {
+          if (catObj.parentId === null) {
+            setSelectedParentId(catObj.id)
+            setSelectedSubId('')
+          } else {
+            setSelectedParentId(catObj.parentId)
+            setSelectedSubId(catObj.id)
+          }
+        }
+        setCategory(product.category)
 
         // Map SKUs
         const initialSkuData: Record<string, any> = {}
@@ -91,12 +131,27 @@ export default function AdminProductFormPage() {
       // Default initial state for new product
       setName('')
       setBrand('')
-      setCategory(PRODUCT_CATEGORIES[0]?.name || '')
+      const firstParent = PRODUCT_CATEGORIES.find(c => c.parentId === null)
+      if (firstParent) {
+        setSelectedParentId(firstParent.id)
+        const firstSub = PRODUCT_CATEGORIES.find(c => c.parentId === firstParent.id)
+        if (firstSub) {
+          setSelectedSubId(firstSub.id)
+          setCategory(firstSub.name)
+        } else {
+          setSelectedSubId('')
+          setCategory(firstParent.name)
+        }
+      } else {
+        setSelectedParentId('')
+        setSelectedSubId('')
+        setCategory('')
+      }
       setDescription('')
       setStatus('active')
       setBasePrice(100000)
       setImages(['https://placehold.co/400x400/3B82F6/white?text=Product+Image'])
-      setTagsInput('')
+      tagsInput && setTagsInput('')
       setAttributes([])
       setSkuData({
         'default': {
@@ -412,16 +467,32 @@ export default function AdminProductFormPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <label className="block font-bold text-gray-600">Danh mục sản phẩm <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-gray-600">Danh mục cha <span className="text-rose-500">*</span></label>
                 <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
+                  value={selectedParentId}
+                  onChange={e => handleParentChange(e.target.value)}
                   className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 bg-white font-semibold"
                 >
-                  {PRODUCT_CATEGORIES.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                  <option value="">Chọn danh mục cha</option>
+                  {PRODUCT_CATEGORIES.filter(c => c.parentId === null).map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block font-bold text-gray-600">Danh mục con <span className="text-rose-500">*</span></label>
+                <select
+                  value={selectedSubId}
+                  onChange={e => setSelectedSubId(e.target.value)}
+                  disabled={!selectedParentId}
+                  className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 bg-white font-semibold disabled:bg-gray-50 disabled:text-gray-400"
+                >
+                  <option value="">Chọn danh mục con</option>
+                  {PRODUCT_CATEGORIES.filter(c => c.parentId === selectedParentId).map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
                   ))}
                 </select>
               </div>

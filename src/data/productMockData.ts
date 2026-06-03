@@ -1,13 +1,50 @@
-import type { Product, SKU } from '@/types'
+import type { Product, SKU, ProductCategory } from '@/types'
 
-export const PRODUCT_CATEGORIES = [
-  { id: 'C001', name: 'Thức ăn chó', icon: '🐕', count: 45 },
-  { id: 'C002', name: 'Thức ăn mèo', icon: '🐈', count: 38 },
-  { id: 'C003', name: 'Phụ kiện', icon: '🎀', count: 62 },
-  { id: 'C004', name: 'Vệ sinh', icon: '🧴', count: 24 },
-  { id: 'C005', name: 'Chăm sóc', icon: '💊', count: 31 },
-  { id: 'C006', name: 'Snack & Bánh thưởng', icon: '🦴', count: 19 },
+const CATEGORY_LOCAL_STORAGE_KEY = 'spsb_product_categories_data'
+
+const INITIAL_PRODUCT_CATEGORIES: ProductCategory[] = [
+  // Level 1: Parent categories
+  { id: 'C_FOOD', name: 'Dinh dưỡng & Thức ăn', parentId: null, icon: '🍖', description: 'Các loại thức ăn hạt, pate, thực phẩm bổ sung dinh dưỡng cho thú cưng', sortOrder: 1, createdAt: '2024-01-01' },
+  { id: 'C_GEAR', name: 'Phụ kiện & Đồ chơi', parentId: null, icon: '🎀', description: 'Quần áo, vòng cổ, đồ chơi tương tác và các vật dụng huấn luyện', sortOrder: 2, createdAt: '2024-01-01' },
+  { id: 'C_CLEAN', name: 'Vệ sinh & Chăm sóc', parentId: null, icon: '🧴', description: 'Cát vệ sinh, sữa tắm, dung dịch lau tai và các sản phẩm chăm sóc sức khỏe', sortOrder: 3, createdAt: '2024-01-01' },
+
+  // Level 2: Subcategories under C_FOOD
+  { id: 'C001', name: 'Thức ăn chó', parentId: 'C_FOOD', icon: '🐕', description: 'Hạt khô, pate lon dành riêng cho các giống chó lớn nhỏ', sortOrder: 1, createdAt: '2024-01-01' },
+  { id: 'C002', name: 'Thức ăn mèo', parentId: 'C_FOOD', icon: '🐈', description: 'Thức ăn hạt, pate gói và súp thưởng giàu dinh dưỡng cho mèo', sortOrder: 2, createdAt: '2024-01-01' },
+  { id: 'C006', name: 'Snack & Bánh thưởng', parentId: 'C_FOOD', icon: '🦴', description: 'Xương gặm sạch răng, bánh thưởng huấn luyện, snack sấy khô', sortOrder: 3, createdAt: '2024-01-01' },
+
+  // Level 2: Subcategories under C_GEAR
+  { id: 'C003', name: 'Phụ kiện', parentId: 'C_GEAR', icon: '🎀', description: 'Vòng cổ, dây dắt phản quang, bát ăn tự động, lồng vận chuyển', sortOrder: 1, createdAt: '2024-01-01' },
+  { id: 'C_TOY', name: 'Đồ chơi', parentId: 'C_GEAR', icon: '🧸', description: 'Bóng cao su, đồ chơi có tiếng kêu, cần câu mèo', sortOrder: 2, createdAt: '2024-01-01' },
+
+  // Level 2: Subcategories under C_CLEAN
+  { id: 'C004', name: 'Vệ sinh', parentId: 'C_CLEAN', icon: '🧴', description: 'Cát vệ sinh bentonite, cát đậu nành, khay vệ sinh, túi hốt phân', sortOrder: 1, createdAt: '2024-01-01' },
+  { id: 'C005', name: 'Chăm sóc', parentId: 'C_CLEAN', icon: '🧼', description: 'Sữa tắm mượt lông, nước hoa khử mùi, thuốc trị ve rận', sortOrder: 2, createdAt: '2024-01-01' },
 ]
+
+const getStoredCategories = (): ProductCategory[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(CATEGORY_LOCAL_STORAGE_KEY)
+    if (data) {
+      try {
+        return JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse stored product categories', e)
+      }
+    }
+  }
+  return INITIAL_PRODUCT_CATEGORIES
+}
+
+export const PRODUCT_CATEGORIES: ProductCategory[] = getStoredCategories()
+
+export const saveProductCategories = (categories: ProductCategory[]) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(CATEGORY_LOCAL_STORAGE_KEY, JSON.stringify(categories))
+  }
+  PRODUCT_CATEGORIES.length = 0
+  PRODUCT_CATEGORIES.push(...categories)
+}
 
 const INITIAL_PRODUCT_MOCK_LIST: Product[] = [
   {

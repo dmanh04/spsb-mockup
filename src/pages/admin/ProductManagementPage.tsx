@@ -62,8 +62,22 @@ export default function AdminProductManagementPage() {
   // --- Filtering ---
   const filteredProducts = useMemo(() => {
     return productList.filter(p => {
-      const categoryName = PRODUCT_CATEGORIES.find(c => c.id === selectedCat)?.name
-      const matchesCategory = !selectedCat || p.category === categoryName
+      const selectedCategoryObj = PRODUCT_CATEGORIES.find(c => c.id === selectedCat)
+      let matchesCategory = true
+      
+      if (selectedCat && selectedCategoryObj) {
+        if (selectedCategoryObj.parentId === null) {
+          // Parent category selected: match any products in its subcategories
+          const subCategoryNames = PRODUCT_CATEGORIES
+            .filter(c => c.parentId === selectedCategoryObj.id)
+            .map(c => c.name)
+          matchesCategory = subCategoryNames.includes(p.category)
+        } else {
+          // Subcategory selected: match exactly
+          matchesCategory = p.category === selectedCategoryObj.name
+        }
+      }
+      
       const matchesSearch = !search || 
         p.name.toLowerCase().includes(search.toLowerCase()) || 
         p.brand.toLowerCase().includes(search.toLowerCase()) ||
@@ -173,9 +187,19 @@ export default function AdminProductManagementPage() {
             className="border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-500 bg-white font-medium text-gray-700"
           >
             <option value="">Tất cả danh mục</option>
-            {PRODUCT_CATEGORIES.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-            ))}
+            {PRODUCT_CATEGORIES.filter(c => c.parentId === null).map(parent => {
+              const subs = PRODUCT_CATEGORIES.filter(c => c.parentId === parent.id)
+              return (
+                <optgroup key={parent.id} label={`${parent.icon} ${parent.name}`}>
+                  <option value={parent.id}>Tất cả thuộc {parent.name}</option>
+                  {subs.map(sub => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.icon} {sub.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )
+            })}
           </select>
         </div>
       </div>

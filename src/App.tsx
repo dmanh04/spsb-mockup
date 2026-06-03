@@ -63,6 +63,7 @@ import UserManagementPage from './pages/admin/UserManagementPage'
 import RolesPage from './pages/admin/RolesPage'
 import AdminProductManagementPage from './pages/admin/ProductManagementPage'
 import AdminProductFormPage from './pages/admin/ProductFormPage'
+import CategoryManagementPage from './pages/admin/CategoryManagementPage'
 import AdminReportsPage from './pages/admin/ReportsPage'
 import ServiceManagementPage from './pages/admin/ServiceManagementPage'
 import ServiceFormPage from './pages/admin/ServiceFormPage'
@@ -172,6 +173,7 @@ export default function App() {
           <Route path="products" element={<AdminProductManagementPage />} />
           <Route path="products/new" element={<AdminProductFormPage />} />
           <Route path="products/:id/edit" element={<AdminProductFormPage />} />
+          <Route path="product-categories" element={<CategoryManagementPage />} />
           <Route path="services" element={<ServiceManagementPage />} />
           <Route path="services/new" element={<ServiceFormPage />} />
           <Route path="services/:id/edit" element={<ServiceFormPage />} />
