@@ -7,7 +7,7 @@ import {
   AlertCircle, ArrowRight, RefreshCw 
 } from 'lucide-react'
 import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
-import { SUPPLIER_MOCK_LIST, PURCHASE_ORDER_LIST, savePurchaseOrders } from '@/data/supplierMockData'
+import { SUPPLIER_MOCK_LIST } from '@/data/supplierMockData'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { formatPrice } from '@/utils/format'
 import type { StockReceiptItem, StockReceiptStatus } from '@/types'
@@ -193,39 +193,6 @@ export default function CreateStockReceiptPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
-  function handleSelectPO(poId: string) {
-    setPoReference(poId)
-    if (!poId) return
-
-    const po = PURCHASE_ORDER_LIST.find(p => p.id === poId)
-    if (!po) return
-
-    setSupplierId(po.supplierId)
-
-    const today = new Date()
-    const expiry = new Date()
-    expiry.setFullYear(today.getFullYear() + 2) // 2 years expiry
-    const expiryStr = expiry.toISOString().slice(0, 10)
-
-    const poItemsMapped = po.items.map((pi, idx) => {
-      const suffix = String(idx + 1).padStart(2, '0')
-      const batchNo = `LOT-${today.toISOString().slice(2, 10).replace(/-/g, '')}-${suffix}`
-      return {
-        skuId: pi.skuId,
-        skuCode: pi.skuCode,
-        productName: pi.productName,
-        orderedQty: pi.qty,
-        receivedQty: pi.qty,
-        unitCost: pi.unitPrice,
-        batchNumber: batchNo,
-        expiryDate: expiryStr
-      }
-    })
-
-    setItems(poItemsMapped)
-    showMiniToast(`Đã nạp PO ${poId} với ${poItemsMapped.length} mặt hàng!`)
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -259,7 +226,7 @@ export default function CreateStockReceiptPage() {
       supplierId: inboundType === 'supplier' || inboundType === 'sample' ? supplierId : 'internal',
       supplierName: getInboundLabel(),
       warehouseId: 'warehouse',
-      poReference: inboundType === 'supplier' ? poReference : (inboundType === 'adjustment' ? poReference : undefined),
+      poReference: inboundType === 'adjustment' ? poReference : undefined,
       inboundType,
       referenceId: inboundType !== 'supplier' ? referenceId : undefined,
       items,
@@ -272,17 +239,6 @@ export default function CreateStockReceiptPage() {
 
     const next = [receipt, ...STOCK_RECEIPTS]
     saveStockReceipts(next)
-
-    // Mark PO as received if applicable
-    if (inboundType === 'supplier' && poReference) {
-      const nextPOs = PURCHASE_ORDER_LIST.map(po => {
-        if (po.id === poReference) {
-          return { ...po, status: 'received' as const }
-        }
-        return po
-      })
-      savePurchaseOrders(nextPOs)
-    }
 
     setToast(`Tạo phiếu nhập kho ${newId} thành công!`)
     setTimeout(() => navigate(`${prefix}/receipts`), 1500)
@@ -520,38 +476,21 @@ export default function CreateStockReceiptPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* Supplier and PO for 'supplier' */}
+              {/* Supplier for 'supplier' */}
               {inboundType === 'supplier' && (
-                <>
-                  <div>
-                    <label className="form-label font-bold text-gray-700 text-xs">Nhà cung cấp <span className="text-rose-500">*</span></label>
-                    <select 
-                      className="form-input text-xs" 
-                      value={supplierId} 
-                      onChange={e => setSupplierId(e.target.value)}
-                    >
-                      <option value="">-- Chọn nhà cung cấp từ hệ thống --</option>
-                      {SUPPLIER_MOCK_LIST.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.contactPerson})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label font-bold text-gray-700 text-xs">Đơn mua hàng PO liên kết</label>
-                    <select 
-                      className="form-input text-xs font-mono font-bold" 
-                      value={poReference} 
-                      onChange={e => handleSelectPO(e.target.value)} 
-                    >
-                      <option value="">-- Nhập hàng tự do (Không theo PO) --</option>
-                      {PURCHASE_ORDER_LIST.filter(po => po.status === 'confirmed').map(po => (
-                        <option key={po.id} value={po.id}>
-                          {po.id} ({po.supplierName.replace('Công ty TNHH ', '')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
+                <div className="md:col-span-2">
+                  <label className="form-label font-bold text-gray-700 text-xs">Nhà cung cấp <span className="text-rose-500">*</span></label>
+                  <select 
+                    className="form-input text-xs" 
+                    value={supplierId} 
+                    onChange={e => setSupplierId(e.target.value)}
+                  >
+                    <option value="">-- Chọn nhà cung cấp từ hệ thống --</option>
+                    {SUPPLIER_MOCK_LIST.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.contactPerson})</option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               {/* Transfer Inbound */}

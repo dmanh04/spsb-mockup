@@ -101,7 +101,11 @@ export default function StockReceiptListPage() {
                     onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}>
                     <td className="table-td">
                       <span className="font-mono text-xs font-bold text-primary-600">{r.id}</span>
-                      {r.poReference && <div className="text-[10px] text-gray-400 mt-0.5">PO: {r.poReference}</div>}
+                      {r.poReference && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">
+                          {r.inboundType === 'adjustment' ? `Lý do: ${r.poReference}` : `Mã tham chiếu: ${r.poReference}`}
+                        </div>
+                      )}
                     </td>
                     <td className="table-td text-xs font-medium text-gray-800 max-w-40 truncate">{r.supplierName}</td>
                     <td className="table-td text-center text-sm font-bold text-gray-700">{r.items.length}</td>
@@ -175,7 +179,7 @@ export default function StockReceiptListPage() {
                 {selected.poReference && (
                   <div>
                     <div className="text-[10px] text-gray-400 uppercase font-bold">
-                      {selected.inboundType === 'adjustment' ? 'Lý do điều chỉnh' : 'Số PO'}
+                      {selected.inboundType === 'adjustment' ? 'Lý do điều chỉnh' : 'Mã tham chiếu'}
                     </div>
                     <div className="font-medium text-gray-800 text-xs truncate" title={selected.poReference}>
                       {selected.poReference}
