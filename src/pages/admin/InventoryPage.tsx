@@ -2,13 +2,27 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Search, AlertTriangle, Plus, ClipboardList, History, Package,
-  ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Boxes, TrendingDown
+  ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Boxes, TrendingDown,
+  BellRing, Radio, Loader2, CheckCircle, X, ChevronRight, Send, Check
 } from 'lucide-react'
 import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS } from '@/data/inventoryMockData'
 import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
 import { STOCK_ISSUES } from '@/data/stockIssueMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
+import { addNotification } from '@/data/notificationMockData'
+
+interface WarehousePing {
+  id: string
+  skuCode: string
+  productName: string
+  shopId: string
+  shopName: string
+  type: 'check' | 'replenish' | 'transfer' | 'custom'
+  message: string
+  status: 'pending' | 'in_progress' | 'resolved'
+  createdAt: string
+}
 
 export default function AdminInventoryPage() {
   const navigate = useNavigate()
@@ -16,6 +30,163 @@ export default function AdminInventoryPage() {
   const [filterShop, setFilterShop] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [search, setSearch] = useState('')
+
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState('')
+
+  // Pings log state
+  const [pings, setPings] = useState<WarehousePing[]>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const data = localStorage.getItem('spsb_warehouse_pings')
+      if (data) {
+        try { return JSON.parse(data) } catch (e) { console.error(e) }
+      }
+    }
+    return [
+      {
+        id: 'P-001',
+        skuCode: 'P002-12KG',
+        productName: 'Whiskas Tuna 1.2kg',
+        shopId: 'SH01',
+        shopName: 'Chi nhánh Q.1',
+        type: 'transfer',
+        message: 'Yêu cầu chuyển sản phẩm "Whiskas Tuna 1.2kg" (P002-12KG) từ Kho trung tâm sang Chi nhánh Q.1.',
+        status: 'pending',
+        createdAt: '2026-05-31 09:15'
+      }
+    ]
+  })
+
+  const savePings = (updatedPings: WarehousePing[]) => {
+    setPings(updatedPings)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('spsb_warehouse_pings', JSON.stringify(updatedPings))
+    }
+  }
+
+  // Ping Modal State
+  const [showPingModal, setShowPingModal] = useState(false)
+  const [pingItem, setPingItem] = useState<{ skuCode: string; productName: string; shopId: string; quantity: number; minStock: number } | null>(null)
+  const [pingType, setPingType] = useState<'check' | 'replenish' | 'transfer' | 'custom'>('check')
+  const [pingMessage, setPingMessage] = useState('')
+
+  // Check Modal State (RFID IoT Scan)
+  const [showCheckModal, setShowCheckModal] = useState(false)
+  const [checkItem, setCheckItem] = useState<{ skuCode: string; productName: string; shopId: string; quantity: number } | null>(null)
+  const [checkStep, setCheckStep] = useState<number>(0) // 0: idle, 1: connecting, 2: scanning, 3: completed
+  const [checkResult, setCheckResult] = useState<{ bookQty: number; actualQty: number; status: 'match' | 'mismatch' } | null>(null)
+
+  const getPreFilledMessage = (type: string, name: string, code: string, shopName: string, qty: number) => {
+    if (type === 'check') {
+      return `Hệ thống ghi nhận sản phẩm "${name}" (${code}) tại ${shopName} đang có tồn kho là ${qty}. Vui lòng thực hiện kiểm đếm thực tế để đối chiếu.`
+    }
+    if (type === 'replenish') {
+      return `Sản phẩm "${name}" (${code}) tại ${shopName} đang ở mức tồn thấp (${qty} sản phẩm). Đề nghị Quản lý kho lên kế hoạch nhập hàng gấp từ nhà cung cấp.`
+    }
+    if (type === 'transfer') {
+      return `Sản phẩm "${name}" (${code}) tại ${shopName} đang hết hàng/sắp hết hàng (${qty} sản phẩm). Vui lòng điều chuyển từ Kho trung tâm sang.`
+    }
+    return ''
+  }
+
+  const handlePingTypeChange = (type: 'check' | 'replenish' | 'transfer' | 'custom') => {
+    setPingType(type)
+    if (pingItem) {
+      const shopName = pingItem.shopId === 'warehouse' ? 'Kho Trung Tâm' : (SHOP_MOCK_LIST.find(s => s.id === pingItem.shopId)?.name ?? pingItem.shopId)
+      setPingMessage(getPreFilledMessage(type, pingItem.productName, pingItem.skuCode, shopName, pingItem.quantity))
+    } else {
+      setPingMessage('')
+    }
+  }
+
+  const openPingModal = (item: any) => {
+    setPingItem(item)
+    const shopName = item.shopId === 'warehouse' ? 'Kho Trung Tâm' : (SHOP_MOCK_LIST.find(s => s.id === item.shopId)?.name ?? item.shopId)
+    let defaultType: 'check' | 'replenish' | 'transfer' | 'custom' = 'check'
+    if (item.quantity === 0 || item.quantity <= item.minStock) {
+      defaultType = item.shopId === 'warehouse' ? 'replenish' : 'transfer'
+    }
+    setPingType(defaultType)
+    setPingMessage(getPreFilledMessage(defaultType, item.productName, item.skuCode, shopName, item.quantity))
+    setShowPingModal(true)
+  }
+
+  const handleSendPing = () => {
+    if (!pingItem) return
+    const shopName = pingItem.shopId === 'warehouse' ? 'Kho Trung Tâm' : (SHOP_MOCK_LIST.find(s => s.id === pingItem.shopId)?.name ?? pingItem.shopId)
+    const typeLabel = pingType === 'check' ? 'Kiểm hàng' : pingType === 'replenish' ? 'Nhập hàng' : pingType === 'transfer' ? 'Chuyển kho' : 'Yêu cầu khác'
+    
+    addNotification({
+      type: 'inventory',
+      title: `Yêu cầu Admin: ${typeLabel} (${pingItem.skuCode})`,
+      body: pingMessage,
+      link: pingType === 'check' ? '/warehouse/stock-count' : pingType === 'transfer' ? '/warehouse/transfers' : '/warehouse',
+      forRoles: ['warehouse_manager']
+    })
+
+    const newPing: WarehousePing = {
+      id: `P-${Date.now()}`,
+      skuCode: pingItem.skuCode,
+      productName: pingItem.productName,
+      shopId: pingItem.shopId,
+      shopName,
+      type: pingType,
+      message: pingMessage,
+      status: 'pending',
+      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    }
+
+    savePings([newPing, ...pings])
+    setToastMessage(`Đã gửi Ping yêu cầu ${typeLabel} tới Quản lý kho!`)
+    setShowPingModal(false)
+    setPingItem(null)
+    setTimeout(() => setToastMessage(''), 3000)
+  }
+
+  const startCheck = (item: any) => {
+    setCheckItem(item)
+    setCheckStep(1)
+    setCheckResult(null)
+    setShowCheckModal(true)
+
+    setTimeout(() => {
+      setCheckStep(2)
+      setTimeout(() => {
+        setCheckStep(3)
+        // Discrepancy simulation (30% chance for items with quantity > 5, 60% chance if quantity <= 5)
+        const isLow = item.quantity <= 5
+        const hasDiscrepancy = Math.random() < (isLow ? 0.60 : 0.30)
+        let actualQty = item.quantity
+        if (hasDiscrepancy) {
+          const delta = Math.random() < 0.5 ? -1 : 1
+          actualQty = Math.max(0, item.quantity + (delta * Math.max(1, Math.floor(Math.random() * 3))))
+        }
+        setCheckResult({
+          bookQty: item.quantity,
+          actualQty,
+          status: actualQty === item.quantity ? 'match' : 'mismatch'
+        })
+      }, 1500)
+    }, 1000)
+  }
+
+  const handlePingFromCheck = () => {
+    if (!checkItem || !checkResult) return
+    const shopName = checkItem.shopId === 'warehouse' ? 'Kho Trung Tâm' : (SHOP_MOCK_LIST.find(s => s.id === checkItem.shopId)?.name ?? checkItem.shopId)
+    const discrepancyText = `Phát hiện lệch số liệu sau khi quét RFID nhanh. Số lượng sổ sách: ${checkResult.bookQty} | Quét thực tế: ${checkResult.actualQty} (Chênh lệch: ${checkResult.actualQty - checkResult.bookQty}). Đề nghị Quản lý kho kiểm đếm và điều chỉnh.`
+    
+    setPingItem({
+      skuCode: checkItem.skuCode,
+      productName: checkItem.productName,
+      shopId: checkItem.shopId,
+      quantity: checkItem.quantity,
+      minStock: 5
+    })
+    setPingType('check')
+    setPingMessage(discrepancyText)
+    setShowCheckModal(false)
+    setShowPingModal(true)
+  }
 
   const SHOPS = [
     { id: 'warehouse', name: 'Kho TT' },
@@ -158,6 +329,87 @@ export default function AdminInventoryPage() {
               </table>
             </div>
           </div>
+
+          {/* Lịch sử yêu cầu gửi Quản lý kho */}
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <BellRing size={16} className="text-indigo-600 animate-pulse" />
+                  Yêu cầu & Ping gửi Quản lý kho
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Lịch sử tương tác và yêu cầu phối hợp vận hành kho</p>
+              </div>
+              {pings.length > 0 && (
+                <button 
+                  onClick={() => {
+                    if (confirm('Bạn có chắc chắn muốn xóa lịch sử gửi ping?')) {
+                      savePings([])
+                    }
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer"
+                >
+                  Xóa lịch sử
+                </button>
+              )}
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3 text-left">Thời gian</th>
+                    <th className="px-5 py-3 text-left">Sản phẩm / SKU</th>
+                    <th className="px-5 py-3 text-left">Vị trí</th>
+                    <th className="px-5 py-3 text-left">Loại yêu cầu</th>
+                    <th className="px-5 py-3 text-left">Nội dung yêu cầu</th>
+                    <th className="px-5 py-3 text-center">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-semibold text-gray-700">
+                  {pings.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
+                        Chưa có yêu cầu hoặc ping nào được gửi.
+                      </td>
+                    </tr>
+                  ) : (
+                    pings.map(ping => {
+                      const typeLabels: Record<string, string> = {
+                        check: 'Kiểm hàng',
+                        replenish: 'Nhập thêm',
+                        transfer: 'Chuyển kho',
+                        custom: 'Yêu cầu khác'
+                      }
+                      const typeColors: Record<string, string> = {
+                        check: 'badge-blue',
+                        replenish: 'badge-green',
+                        transfer: 'badge-orange',
+                        custom: 'badge-gray'
+                      }
+                      return (
+                        <tr key={ping.id} className="hover:bg-gray-50/50">
+                          <td className="px-5 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{ping.createdAt}</td>
+                          <td className="px-5 py-3">
+                            <div className="text-xs font-bold text-gray-900">{ping.productName}</div>
+                            <div className="text-[9px] text-gray-400 font-mono mt-0.5">{ping.skuCode}</div>
+                          </td>
+                          <td className="px-5 py-3 text-xs">{ping.shopName}</td>
+                          <td className="px-5 py-3 text-xs">
+                            <span className={typeColors[ping.type] || 'badge-gray'}>{typeLabels[ping.type] || ping.type}</span>
+                          </td>
+                          <td className="px-5 py-3 text-xs text-gray-500 max-w-xs truncate" title={ping.message}>{ping.message}</td>
+                          <td className="px-5 py-3 text-center">
+                            <span className="badge-orange">Đang chờ xử lý</span>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -240,10 +492,21 @@ export default function AdminInventoryPage() {
                       <td className="px-5 py-4">
                         {isOut ? <span className="badge-red">Hết hàng</span> : isLow ? <span className="badge-orange">Sắp hết</span> : <span className="badge-green">Còn hàng</span>}
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
+                        <button onClick={() => startCheck(item)}
+                          title="Quét thực tế (Check RFID)"
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-all cursor-pointer mr-1.5 inline-flex items-center gap-1">
+                          <Radio size={12} /> Check
+                        </button>
+                        <button onClick={() => openPingModal(item)}
+                          title="Ping Quản lý Kho"
+                          className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl text-xs font-bold transition-all cursor-pointer mr-1.5 inline-flex items-center gap-1">
+                          <BellRing size={12} /> Ping
+                        </button>
                         <button onClick={() => navigate(`/admin/inventory/adjust?skuCode=${item.skuCode}&shopId=${item.shopId}`)}
-                          className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-all cursor-pointer">
-                          Cân đối
+                          title="Cân đối thủ công"
+                          className="px-2.5 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1">
+                          <Plus size={12} /> Cân đối
                         </button>
                       </td>
                     </tr>
@@ -325,6 +588,232 @@ export default function AdminInventoryPage() {
                 <div className="font-semibold text-xs">Chưa có lịch sử giao dịch kho nào.</div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-gray-800 animate-slideIn">
+          <CheckCircle size={18} className="text-emerald-400 shrink-0" />
+          <span className="font-semibold text-sm">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* MODAL: PING QUẢN LÝ KHO */}
+      {showPingModal && pingItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 shadow-2xl" onClick={() => setShowPingModal(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-gray-100 overflow-hidden animate-zoomIn" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-amber-50/20">
+              <div className="flex items-center gap-2.5 text-amber-600">
+                <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                  <BellRing size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base font-black">Ping Quản lý Kho</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Gửi thông báo yêu cầu phối hợp vận hành</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPingModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1.5 rounded-full transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-left">
+              {/* Product Info */}
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-1">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Sản phẩm & SKU</div>
+                <div className="text-sm font-bold text-gray-900">{pingItem.productName}</div>
+                <div className="flex justify-between items-center text-xs text-gray-500 mt-1">
+                  <span>Mã: <code className="font-mono text-indigo-600 bg-indigo-50 px-1.5 rounded font-bold">{pingItem.skuCode}</code></span>
+                  <span>Tồn hiện tại: <strong className="text-gray-800 font-extrabold font-mono">{pingItem.quantity}</strong></span>
+                </div>
+              </div>
+
+              {/* Request Type Selector */}
+              <div>
+                <label className="form-label mb-2 block font-bold text-gray-700">Loại yêu cầu</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'check', label: 'Kiểm hàng thực tế', desc: 'Yêu cầu đếm lại kệ' },
+                    { key: 'replenish', label: 'Nhập thêm hàng', desc: 'Từ nhà cung cấp' },
+                    { key: 'transfer', label: 'Điều chuyển kho', desc: 'Chuyển hàng nội bộ' },
+                    { key: 'custom', label: 'Yêu cầu khác (Tùy chỉnh)', desc: 'Tự viết nội dung' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => handlePingTypeChange(opt.key as any)}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        pingType === opt.key 
+                          ? 'border-amber-500 bg-amber-50/40 shadow-sm font-bold' 
+                          : 'border-gray-150 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-gray-900">{opt.label}</div>
+                      <div className="text-[9px] text-gray-400 mt-0.5">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Text Area Message */}
+              <div>
+                <label className="form-label mb-1.5 block font-bold text-gray-700">Nội dung tin nhắn</label>
+                <textarea
+                  rows={4}
+                  className="form-input text-xs leading-relaxed resize-none border-gray-200 focus:border-amber-400 focus:ring-amber-50 rounded-2xl w-full p-3 bg-white"
+                  placeholder="Nhập nội dung yêu cầu cụ thể..."
+                  value={pingMessage}
+                  onChange={e => setPingMessage(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5">
+              <button onClick={() => setShowPingModal(false)} className="btn-secondary py-2 rounded-xl text-xs">Hủy</button>
+              <button 
+                onClick={handleSendPing} 
+                disabled={!pingMessage.trim()}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:pointer-events-none text-white px-5 py-2.5 rounded-2xl font-semibold shadow-lg shadow-amber-100 transition-all active:scale-95 cursor-pointer text-xs"
+              >
+                <Send size={13} /> Gửi yêu cầu (Ping)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RFID / IOT CHECK SIMULATION */}
+      {showCheckModal && checkItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 shadow-2xl">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-gray-100 overflow-hidden animate-zoomIn">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/20">
+              <div className="flex items-center gap-2.5 text-indigo-600">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <Radio size={18} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base font-black">Check RFID / IoT</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Kiểm đếm tự động qua cảm biến kệ hàng</p>
+                </div>
+              </div>
+              {checkStep === 3 && (
+                <button onClick={() => setShowCheckModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1.5 rounded-full transition-colors">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            <div className="p-6 flex flex-col items-center justify-center text-center min-h-64">
+              {/* Step 1: Connecting */}
+              {checkStep === 1 && (
+                <div className="space-y-4 py-6 animate-pulse">
+                  <Loader2 className="animate-spin text-indigo-600 mx-auto" size={42} />
+                  <div>
+                    <div className="text-sm font-bold text-gray-800">Đang kết nối thiết bị RFID...</div>
+                    <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">Đang truy vấn tín hiệu từ cổng đọc tại chi nhánh...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Scanning */}
+              {checkStep === 2 && (
+                <div className="space-y-4 py-4 w-full">
+                  <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-indigo-100/50 animate-ping" />
+                    <div className="absolute inset-2 rounded-full bg-indigo-200/50 animate-pulse" />
+                    <div className="relative w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                      <Radio size={22} className="animate-spin animate-pulse" style={{ animationDuration: '3s' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-gray-800">Đang quét dải sóng UHF trên kệ...</div>
+                    <div className="bg-gray-950 rounded-xl p-3 text-left font-mono text-[10px] text-emerald-400 mt-3 space-y-1 overflow-hidden h-24 max-w-sm mx-auto border border-gray-800">
+                      <div className="text-gray-500">&gt; rfid_scanner --connect --shelf-id=S12</div>
+                      <div>&gt; Connecting to hardware receiver... SUCCESS</div>
+                      <div className="animate-pulse">&gt; Reading tag UID for {checkItem.skuCode}...</div>
+                      <div className="text-yellow-400">&gt; Match count database tracking: {checkItem.quantity} units</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Completed */}
+              {checkStep === 3 && checkResult && (
+                <div className="w-full space-y-5 animate-slideIn">
+                  {checkResult.status === 'match' ? (
+                    <>
+                      <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                        <CheckCircle size={36} />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-emerald-600">Số liệu Trùng Khớp!</h4>
+                        <p className="text-xs text-gray-500 mt-1.5 px-4 leading-relaxed">
+                          Quét RFID tại kệ vật lý hoàn toàn trùng khớp với dữ liệu trên hệ thống.
+                        </p>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 grid grid-cols-2 gap-4 max-w-xs mx-auto">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Sổ sách</div>
+                          <div className="text-xl font-black text-gray-800 mt-1 font-mono">{checkResult.bookQty}</div>
+                        </div>
+                        <div className="border-l border-gray-200 pl-4">
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Thực tế RFID</div>
+                          <div className="text-xl font-black text-emerald-600 mt-1 font-mono">{checkResult.actualQty}</div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 max-w-xs mx-auto">
+                        <button onClick={() => setShowCheckModal(false)} className="btn-secondary w-full py-2.5 rounded-xl justify-center font-bold text-xs">
+                          Đóng
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                        <AlertTriangle size={36} />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-red-500">Phát Hiện Sai Lệch!</h4>
+                        <p className="text-xs text-gray-500 mt-1.5 px-4 leading-relaxed">
+                          Quét thực tế bằng cảm biến phát hiện sự sai lệch giữa số lượng trên hệ thống và số lượng tại quầy/kho.
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 max-w-xs mx-auto space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Sổ sách</div>
+                            <div className="text-xl font-black text-gray-800 mt-1 font-mono">{checkResult.bookQty}</div>
+                          </div>
+                          <div className="border-l border-gray-200 pl-4">
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Thực tế RFID</div>
+                            <div className="text-xl font-black text-red-500 mt-1 font-mono">{checkResult.actualQty}</div>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 flex justify-between items-center text-xs">
+                          <span className="text-gray-500 font-medium">Chênh lệch:</span>
+                          <span className="font-extrabold font-mono text-red-500">
+                            {checkResult.actualQty - checkResult.bookQty > 0 ? '+' : ''}{checkResult.actualQty - checkResult.bookQty} sản phẩm
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 space-y-2 max-w-xs mx-auto">
+                        <button onClick={handlePingFromCheck} className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white w-full py-2.5 rounded-xl font-semibold shadow-lg shadow-amber-100 transition-all text-xs cursor-pointer">
+                          <BellRing size={13} /> Ping Quản lý kho xử lý ngay
+                        </button>
+                        <button onClick={() => setShowCheckModal(false)} className="btn-secondary w-full py-2 rounded-xl justify-center text-xs">
+                          Bỏ qua
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
