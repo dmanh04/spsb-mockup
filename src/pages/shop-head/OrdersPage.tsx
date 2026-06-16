@@ -8,6 +8,7 @@ import {
 import { ORDER_MOCK_LIST, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, saveOrders } from '@/data/orderMockData'
 import { BOOKING_MOCK_LIST, saveBookings } from '@/data/bookingMockData'
 import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import { useAuthContext } from '@/auth/AuthContext'
 import { formatPrice } from '@/utils/format'
 import type { Order, Booking, OrderStatus, SKU } from '@/types'
@@ -358,8 +359,13 @@ export default function ShopHeadOrdersPage() {
       return
     }
 
+    const newOrderId = `ORD-${Date.now().toString().slice(-6)}`
+
     // 1. Decrement product stock in local storage databases
     const freshProducts = [...PRODUCT_MOCK_LIST]
+    const updatedInventory = [...INVENTORY_ITEMS]
+    const updatedTx = [...INVENTORY_TRANSACTIONS]
+
     posCart.forEach(cartItem => {
       const pIndex = freshProducts.findIndex(p => p.skus.some(s => s.id === cartItem.skuId))
       if (pIndex !== -1) {
@@ -369,11 +375,37 @@ export default function ShopHeadOrdersPage() {
           freshProducts[pIndex].skus[skuIndex].stock = newStock
         }
       }
+
+      // Decrement shop inventory in INVENTORY_ITEMS
+      const invIndex = updatedInventory.findIndex(i => i.skuId === cartItem.skuId && i.shopId === shopId)
+      if (invIndex > -1) {
+        updatedInventory[invIndex] = {
+          ...updatedInventory[invIndex],
+          quantity: Math.max(0, updatedInventory[invIndex].quantity - cartItem.quantity),
+          lastUpdated: new Date().toISOString().slice(0, 10)
+        }
+      }
+
+      // Record transaction
+      const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      updatedTx.push({
+        id: txId,
+        type: 'stock_out',
+        skuId: cartItem.skuId,
+        skuCode: cartItem.skuCode,
+        productName: cartItem.productName,
+        shopId: shopId,
+        quantity: -cartItem.quantity,
+        note: `Bán lẻ tại quầy - Đơn hàng ${newOrderId}`,
+        createdBy: currentUser?.fullName || 'Thu ngân chi nhánh',
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      })
     })
+
     saveProducts(freshProducts)
+    saveInventory(updatedInventory, updatedTx)
 
     // 2. Create the brand new Order
-    const newOrderId = `ORD-${Date.now().toString().slice(-6)}`
     const newOrder: Order = {
       id: newOrderId,
       customerId: 'U_GUEST',

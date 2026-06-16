@@ -157,7 +157,7 @@ export default function AdminProductFormPage() {
         'default': {
           sku: '',
           price: 100000,
-          stock: 10,
+          stock: 0,
           image: ''
         }
       })
@@ -254,7 +254,7 @@ export default function AdminProductFormPage() {
       newSkuData['default'] = skuData['default'] || {
         sku: isEditMode ? `SKU-${id}-DEFAULT` : 'SKU-NEW-DEFAULT',
         price: basePrice || 100000,
-        stock: 10,
+        stock: 0,
         image: defaultSkuImage
       }
     } else {
@@ -271,7 +271,7 @@ export default function AdminProductFormPage() {
         newSkuData[key] = skuData[key] || {
           sku: generatedSkuCode,
           price: basePrice || 100000,
-          stock: 10,
+          stock: 0,
           image: defaultSkuImage
         }
       })
@@ -650,6 +650,13 @@ export default function AdminProductFormPage() {
               Danh sách SKU biến thể chi tiết ({activeAttrs.length === 0 ? 1 : skuCombinations.length})
             </h3>
 
+            <div className="bg-amber-50 border border-amber-200/40 rounded-xl p-3.5 flex gap-2.5 items-start text-amber-800">
+              <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-medium leading-relaxed">
+                <strong>Quy trình Quản lý Kho:</strong> Số lượng tồn kho của SKU được quản lý tự động, độc lập thông qua các nghiệp vụ <strong>Nhập kho (GRN)</strong> hoặc <strong>Cân đối kiểm kho</strong>. Bạn không thể nhập/sửa trực tiếp số lượng tồn ở đây để đảm bảo tính minh bạch dữ liệu.
+              </p>
+            </div>
+
             <div className="overflow-x-auto rounded-xl border border-gray-100">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -659,7 +666,7 @@ export default function AdminProductFormPage() {
                     ))}
                     <th className="px-4 py-3 min-w-[130px]">Mã SKU</th>
                     <th className="px-4 py-3 min-w-[120px]">Giá bán lẻ (VND)</th>
-                    <th className="px-4 py-3 min-w-[90px]">Số lượng tồn</th>
+                    <th className="px-4 py-3 min-w-[90px] text-center">Số lượng tồn</th>
                     <th className="px-4 py-3 min-w-[150px]">Link ảnh SKU</th>
                   </tr>
                 </thead>
@@ -688,15 +695,10 @@ export default function AdminProductFormPage() {
                           className="w-full text-xs px-2.5 py-1 border border-gray-200 rounded-md focus:border-red-500 focus:outline-none font-mono"
                         />
                       </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          required
-                          min={0}
-                          value={skuData['default']?.stock || 0}
-                          onChange={e => updateSkuDetail('default', 'stock', Number(e.target.value))}
-                          className="w-full text-xs px-2.5 py-1 border border-gray-200 rounded-md focus:border-red-500 focus:outline-none font-mono"
-                        />
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold font-mono">
+                          {skuData['default']?.stock || 0}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <input
@@ -712,7 +714,7 @@ export default function AdminProductFormPage() {
                     // Combinations Rows
                     skuCombinations.map((combo, comboIdx) => {
                       const key = combo.join('|')
-                      const rowData = skuData[key] || { sku: '', price: basePrice, stock: 10, image: '' }
+                      const rowData = skuData[key] || { sku: '', price: basePrice, stock: 0, image: '' }
                       
                       return (
                         <tr key={comboIdx} className="hover:bg-gray-50/50">
@@ -738,15 +740,10 @@ export default function AdminProductFormPage() {
                               className="w-full text-xs px-2.5 py-1 border border-gray-200 rounded-md focus:border-red-500 focus:outline-none font-mono"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              required
-                              min={0}
-                              value={rowData.stock}
-                              onChange={e => updateSkuDetail(key, 'stock', Number(e.target.value))}
-                              className="w-full text-xs px-2.5 py-1 border border-gray-200 rounded-md focus:border-red-500 focus:outline-none font-mono"
-                            />
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center justify-center px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold font-mono">
+                              {rowData.stock || 0}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
                             <input

@@ -1,4 +1,5 @@
 import type { InventoryItem, InventoryTransaction } from '@/types'
+import { PRODUCT_MOCK_LIST, saveProducts } from './productMockData'
 
 const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
   // Central warehouse
@@ -73,4 +74,16 @@ export const saveInventory = (items: InventoryItem[], txList: InventoryTransacti
   
   INVENTORY_TRANSACTIONS.length = 0
   INVENTORY_TRANSACTIONS.push(...txList)
+
+  // Synchronize with PRODUCT_MOCK_LIST
+  const updatedProducts = PRODUCT_MOCK_LIST.map(prod => {
+    const updatedSkus = prod.skus.map(sku => {
+      const totalStock = items
+        .filter(i => i.skuId === sku.id)
+        .reduce((sum, item) => sum + item.quantity, 0)
+      return { ...sku, stock: totalStock }
+    })
+    return { ...prod, skus: updatedSkus }
+  })
+  saveProducts(updatedProducts)
 }
