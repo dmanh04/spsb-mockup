@@ -755,10 +755,7 @@ export default function CreateStockReceiptPage() {
                     <tr className="bg-slate-50 border-b border-gray-200/80 text-[11px] font-bold">
                       <th className="table-th text-slate-500 py-3.5 pl-5 w-60">Thông tin SKU / Sản phẩm</th>
                       <th className="table-th text-slate-500 py-3.5 w-24">Tồn kho</th>
-                      <th className="table-th text-slate-500 py-3.5 w-28">Số Lô</th>
-                      <th className="table-th text-slate-500 py-3.5 w-36">Hạn sử dụng</th>
-                      <th className="table-th text-slate-500 py-3.5 w-20">SL Đặt</th>
-                      <th className="table-th text-slate-500 py-3.5 w-28">SL Nhận</th>
+                      <th className="table-th text-slate-500 py-3.5 w-28">Số lượng đặt</th>
                       <th className="table-th text-slate-500 py-3.5 w-28">Đơn giá vốn</th>
                       <th className="table-th text-slate-500 py-3.5 w-28">Thành tiền</th>
                       <th className="table-th py-3.5 pr-5 w-10"></th>
@@ -767,15 +764,11 @@ export default function CreateStockReceiptPage() {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item, idx) => {
                       const meta = allSKUs.find(s => s.skuId === item.skuId)
-                      const isMismatch = item.receivedQty !== item.orderedQty
-                      const isShortage = item.receivedQty < item.orderedQty
-                      
-                      // Calculate margin rate (retail vs unitCost)
                       const retailPrice = meta?.price || 0
                       const discountRate = retailPrice > 0 ? Math.round((1 - item.unitCost / retailPrice) * 100) : 0
 
                       return (
-                        <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${isMismatch ? 'bg-amber-50/10' : ''}`}>
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                           {/* Item Meta */}
                           <td className="py-4 pl-5 align-top">
                             <div className="flex items-start gap-3">
@@ -812,113 +805,20 @@ export default function CreateStockReceiptPage() {
                             </div>
                           </td>
 
-                          {/* Batch Lot Number */}
-                          <td className="py-4 align-top">
-                            <div className="pt-0.5">
-                              <input 
-                                type="text" 
-                                className="form-input text-xs font-mono py-1 px-1.5 w-24 border-gray-300 rounded-lg text-slate-800 uppercase"
-                                placeholder="VD: LÔ-A1"
-                                value={item.batchNumber || ''} 
-                                onChange={e => updateItem(idx, 'batchNumber', e.target.value.toUpperCase())}
-                              />
-                            </div>
-                          </td>
-
-                          {/* Expiry Date with Expiration warnings */}
-                          <td className="py-4 align-top">
-                            <div className="space-y-1">
-                              <input 
-                                type="date" 
-                                className="form-input text-[11px] py-1 px-1.5 w-32 border-gray-300 rounded-lg text-slate-800 font-medium"
-                                value={item.expiryDate || ''} 
-                                onChange={e => updateItem(idx, 'expiryDate', e.target.value)}
-                              />
-                              {item.expiryDate && (() => {
-                                const exp = new Date(item.expiryDate)
-                                const today = new Date()
-                                const diffTime = exp.getTime() - today.getTime()
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-                                
-                                if (diffDays <= 0) {
-                                  return (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 rounded-md block text-center">
-                                      ❌ Hết hạn!
-                                    </span>
-                                  )
-                                } else if (diffDays <= 90) {
-                                  return (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-md block text-center animate-pulse">
-                                      ⚠️ Cận date ({diffDays} n)
-                                    </span>
-                                  )
-                                } else {
-                                  return (
-                                    <span className="text-[9px] text-emerald-600 font-bold block text-center">
-                                      ✓ Còn {diffDays} ngày
-                                    </span>
-                                  )
-                                }
-                              })()}
-                            </div>
-                          </td>
-
-                          {/* Ordered Qty */}
+                          {/* Quantity (orderedQty) */}
                           <td className="py-4 align-top">
                             <div className="pt-0.5">
                               <input 
                                 type="number" 
                                 min={1} 
-                                className="form-input text-xs py-1 px-2 w-16 text-center border-gray-300 font-medium" 
+                                className="form-input text-xs py-1 px-2 w-20 text-center border-gray-300 font-medium" 
                                 value={item.orderedQty}
-                                onChange={e => updateItem(idx, 'orderedQty', +e.target.value)} 
+                                onChange={e => {
+                                  const val = +e.target.value
+                                  updateItem(idx, 'orderedQty', val)
+                                  updateItem(idx, 'receivedQty', 0)
+                                }} 
                               />
-                            </div>
-                          </td>
-
-                          {/* Received Qty with stepper buttons */}
-                          <td className="py-4 align-top">
-                            <div className="space-y-1">
-                              <div className="flex items-center">
-                                <button 
-                                  type="button"
-                                  onClick={() => updateItem(idx, 'receivedQty', Math.max(0, item.receivedQty - 1))}
-                                  className="p-1.5 border border-r-0 border-gray-300 rounded-l-lg hover:bg-slate-100 text-gray-500 active:bg-slate-200 transition-colors"
-                                >
-                                  <Minus size={11} />
-                                </button>
-                                <input 
-                                  type="number" 
-                                  min={0} 
-                                  className={`form-input text-xs py-1 px-1 w-12 text-center rounded-none border-gray-300 font-bold focus:ring-0 ${
-                                    isMismatch ? 'border-amber-400 bg-amber-50/40 text-amber-900' : 'text-slate-800'
-                                  }`} 
-                                  value={item.receivedQty} 
-                                  onChange={e => updateItem(idx, 'receivedQty', +e.target.value)} 
-                                />
-                                <button 
-                                  type="button"
-                                  onClick={() => updateItem(idx, 'receivedQty', item.receivedQty + 1)}
-                                  className="p-1.5 border border-l-0 border-gray-300 rounded-r-lg hover:bg-slate-100 text-gray-500 active:bg-slate-200 transition-colors"
-                                >
-                                  <Plus size={11} />
-                                </button>
-                              </div>
-
-                              {/* Mismatch Alert Badges */}
-                              {isMismatch && (
-                                <div className="text-[9px] font-bold block animate-pulse">
-                                  {isShortage ? (
-                                    <span className="text-amber-600 flex items-center gap-0.5">
-                                      ⚠️ Thiếu {item.orderedQty - item.receivedQty} sp
-                                    </span>
-                                  ) : (
-                                    <span className="text-blue-600 flex items-center gap-0.5">
-                                      ✨ Thừa {item.receivedQty - item.orderedQty} sp
-                                    </span>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </td>
 
@@ -934,7 +834,7 @@ export default function CreateStockReceiptPage() {
                               />
                               <div className="flex items-center justify-between gap-1 pr-2">
                                 <button 
-                                  type="button"
+                                  type="button" 
                                   onClick={() => updateItem(idx, 'unitCost', Math.round(retailPrice * 0.65))}
                                   className="text-[9px] font-bold text-primary-600 hover:text-primary-800 hover:underline cursor-pointer"
                                   title="Đặt giá gốc gợi ý bằng 65% giá bán lẻ"
@@ -953,7 +853,7 @@ export default function CreateStockReceiptPage() {
                           {/* Subtotal */}
                           <td className="py-4 align-top">
                             <div className="pt-1 text-xs font-extrabold text-slate-900">
-                              {formatPrice(item.receivedQty * item.unitCost)}
+                              {formatPrice(item.orderedQty * item.unitCost)}
                             </div>
                             <div className="text-[9px] text-gray-400 mt-0.5">
                               Giá bán lẻ: {formatPrice(retailPrice)}
@@ -982,9 +882,6 @@ export default function CreateStockReceiptPage() {
                       </td>
                       <td className="py-4 text-xs font-black text-slate-700">
                         {items.reduce((s, i) => s + i.orderedQty, 0)}
-                      </td>
-                      <td className="py-4 text-xs font-black text-slate-800">
-                        {totalItems}
                       </td>
                       <td className="py-4"></td>
                       <td className="py-4 text-sm font-black text-primary-600" colSpan={2}>

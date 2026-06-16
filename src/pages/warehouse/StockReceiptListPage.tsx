@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Plus, Search, Eye, CheckCircle, XCircle, FileText, Filter } from 'lucide-react'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import { formatPrice } from '@/utils/format'
-import type { StockReceiptStatus } from '@/types'
+import type { StockReceipt, StockReceiptItem, StockReceiptStatus } from '@/types'
 
 const STATUS_MAP: Record<StockReceiptStatus, { label: string; badge: string }> = {
   draft: { label: 'Nháp', badge: 'badge-gray' },
@@ -29,16 +30,94 @@ export default function StockReceiptListPage() {
   const pendingCount = receipts.filter(r => r.status === 'pending_approval').length
   const selected = selectedId ? receipts.find(r => r.id === selectedId) : null
 
+  const [receivingReceipt, setReceivingReceipt] = useState<StockReceipt | null>(null)
+  const [receivingItems, setReceivingItems] = useState<StockReceiptItem[]>([])
+
   function approve(id: string) {
     const next = receipts.map(r => r.id === id ? { ...r, status: 'approved' as const, approvedBy: 'Admin PetCare', approvedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') } : r)
     setReceipts(next)
     saveStockReceipts(next)
   }
 
-  function complete(id: string) {
-    const next = receipts.map(r => r.id === id ? { ...r, status: 'completed' as const } : r)
-    setReceipts(next)
-    saveStockReceipts(next)
+  function startReceiving(r: StockReceipt) {
+    setReceivingReceipt(r)
+    const today = new Date()
+    const expiry = new Date()
+    expiry.setFullYear(today.getFullYear() + 2)
+    const expiryStr = expiry.toISOString().slice(0, 10)
+    
+    const mapped = r.items.map((item, idx) => {
+      const suffix = String(idx + 1).padStart(2, '0')
+      const suggestedBatch = `LOT-${today.toISOString().slice(2, 10).replace(/-/g, '')}-${suffix}`
+      return {
+        ...item,
+        receivedQty: item.receivedQty || item.orderedQty,
+        batchNumber: item.batchNumber || suggestedBatch,
+        expiryDate: item.expiryDate || expiryStr
+      }
+    })
+    setReceivingItems(mapped)
+  }
+
+  function confirmStockIn() {
+    if (!receivingReceipt) return
+
+    const nextReceipts = receipts.map(r => {
+      if (r.id !== receivingReceipt.id) return r
+      return {
+        ...r,
+        items: receivingItems,
+        status: 'completed' as const,
+        approvedBy: r.approvedBy || 'Admin PetCare',
+        approvedAt: r.approvedAt || new Date().toISOString().slice(0, 16).replace('T', ' ')
+      }
+    })
+    setReceipts(nextReceipts)
+    saveStockReceipts(nextReceipts)
+
+    const updatedInventory = [...INVENTORY_ITEMS]
+    const updatedTx = [...INVENTORY_TRANSACTIONS]
+
+    receivingItems.forEach(item => {
+      const invIndex = updatedInventory.findIndex(i => i.skuId === item.skuId && i.shopId === 'warehouse')
+      const quantityToAdd = item.receivedQty
+
+      if (invIndex > -1) {
+        updatedInventory[invIndex] = {
+          ...updatedInventory[invIndex],
+          quantity: updatedInventory[invIndex].quantity + quantityToAdd,
+          lastUpdated: new Date().toISOString().slice(0, 10)
+        }
+      } else {
+        updatedInventory.push({
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          shopId: 'warehouse',
+          quantity: quantityToAdd,
+          minStock: 10,
+          lastUpdated: new Date().toISOString().slice(0, 10)
+        })
+      }
+
+      const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      updatedTx.push({
+        id: txId,
+        type: 'stock_in',
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        productName: item.productName,
+        shopId: 'warehouse',
+        quantity: quantityToAdd,
+        note: `Nhập kho từ phiếu ${receivingReceipt.id} (NCC: ${receivingReceipt.supplierName}) - Lô: ${item.batchNumber}`,
+        createdBy: 'Bùi Văn Khánh',
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      })
+    })
+
+    saveInventory(updatedInventory, updatedTx)
+    setReceivingReceipt(null)
+    setReceivingItems([])
   }
 
   function cancel(id: string) {
@@ -125,7 +204,7 @@ export default function StockReceiptListPage() {
                           </>
                         )}
                         {r.status === 'approved' && (
-                          <button onClick={() => complete(r.id)} className="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                          <button onClick={() => startReceiving(r)} className="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
                             Nhập kho
                           </button>
                         )}
@@ -267,14 +346,123 @@ export default function StockReceiptListPage() {
                 </div>
               )}
               {selected.status === 'approved' && (
-                <button onClick={() => complete(selected.id)} className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl transition-colors">
-                  ✅ Xác nhận đã nhập kho
+                <button onClick={() => startReceiving(selected)} className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl transition-colors">
+                  ✅ Tiến hành nhập kho thực tế
                 </button>
               )}
             </div>
           </div>
         )}
       </div>
+      {/* Modal: Xác nhận nhập kho thực tế */}
+      {receivingReceipt && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl p-6 space-y-4 animate-scaleUp shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-150 pb-3">
+              <div>
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <span>📥</span> Xác nhận nhập kho thực tế
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Phiếu nhập: <strong className="font-mono text-primary-650">{receivingReceipt.id}</strong> · Nhà cung cấp: <strong>{receivingReceipt.supplierName}</strong>
+                </p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => { setReceivingReceipt(null); setReceivingItems([]); }} 
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-gray-200 text-slate-600 font-bold">
+                    <th className="py-2.5 px-3">Tên sản phẩm / SKU</th>
+                    <th className="py-2.5 px-2 text-center w-20">SL Đặt</th>
+                    <th className="py-2.5 px-2 text-center w-24">SL Thực Nhận</th>
+                    <th className="py-2.5 px-2 w-32">Số Lô <span className="text-rose-500">*</span></th>
+                    <th className="py-2.5 px-2 w-36">Hạn sử dụng <span className="text-rose-500">*</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {receivingItems.map((item, idx) => {
+                    const isMismatch = item.receivedQty !== item.orderedQty
+                    return (
+                      <tr key={idx} className={`hover:bg-slate-50/30 ${isMismatch ? 'bg-amber-50/10' : ''}`}>
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-gray-800">{item.productName}</div>
+                          <div className="text-[10px] text-gray-400 font-mono mt-0.5">{item.skuCode}</div>
+                        </td>
+                        <td className="py-3 px-2 text-center font-bold text-gray-600">
+                          {item.orderedQty}
+                        </td>
+                        <td className="py-3 px-2">
+                          <input 
+                            type="number"
+                            min={0}
+                            className="form-input text-center text-xs py-1 px-1.5 font-bold border-gray-300 w-16 mx-auto block"
+                            value={item.receivedQty}
+                            onChange={e => {
+                              const val = +e.target.value
+                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, receivedQty: val } : itm))
+                            }}
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <input 
+                            type="text"
+                            required
+                            placeholder="Nhập mã lô"
+                            className="form-input text-xs font-mono py-1 px-2 border-gray-300 uppercase w-28"
+                            value={item.batchNumber || ''}
+                            onChange={e => {
+                              const val = e.target.value.toUpperCase()
+                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, batchNumber: val } : itm))
+                            }}
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <input 
+                            type="date"
+                            required
+                            className="form-input text-[11px] py-1 px-2 border-gray-300 w-32 font-medium"
+                            value={item.expiryDate || ''}
+                            onChange={e => {
+                              const val = e.target.value
+                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, expiryDate: val } : itm))
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-150">
+              <button 
+                type="button" 
+                onClick={() => { setReceivingReceipt(null); setReceivingItems([]); }} 
+                className="btn-secondary text-xs px-4 py-2"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                type="button" 
+                onClick={confirmStockIn}
+                disabled={receivingItems.some(i => !i.batchNumber || !i.expiryDate)}
+                className="btn-primary text-xs px-5 py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                📥 Hoàn tất Nhập kho
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
