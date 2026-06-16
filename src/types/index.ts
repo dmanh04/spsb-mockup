@@ -356,6 +356,8 @@ export interface StockReceiptItem {
   orderedQty: number
   receivedQty: number
   unitCost: number
+  batchNumber?: string
+  expiryDate?: string
   note?: string
 }
 
@@ -365,6 +367,8 @@ export interface StockReceipt {
   supplierName: string
   warehouseId: string
   poReference?: string
+  inboundType?: 'supplier' | 'transfer' | 'return' | 'adjustment' | 'sample'
+  referenceId?: string
   items: StockReceiptItem[]
   totalValue: number
   status: StockReceiptStatus

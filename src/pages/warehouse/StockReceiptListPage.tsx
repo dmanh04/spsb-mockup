@@ -150,12 +150,58 @@ export default function StockReceiptListPage() {
 
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
-                <div><div className="text-[10px] text-gray-400 uppercase font-bold">Trạng thái</div><span className={STATUS_MAP[selected.status].badge}>{STATUS_MAP[selected.status].label}</span></div>
-                <div><div className="text-[10px] text-gray-400 uppercase font-bold">Ngày tạo</div><div className="font-medium">{selected.createdAt}</div></div>
-                <div className="col-span-2"><div className="text-[10px] text-gray-400 uppercase font-bold">Nhà cung cấp</div><div className="font-medium">{selected.supplierName}</div></div>
-                {selected.poReference && <div><div className="text-[10px] text-gray-400 uppercase font-bold">Số PO</div><div className="font-mono font-medium">{selected.poReference}</div></div>}
-                <div><div className="text-[10px] text-gray-400 uppercase font-bold">Người tạo</div><div className="font-medium">{selected.createdBy}</div></div>
-                {selected.approvedBy && <div><div className="text-[10px] text-gray-400 uppercase font-bold">Người duyệt</div><div className="font-medium">{selected.approvedBy}</div></div>}
+                <div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold">Trạng thái</div>
+                  <span className={STATUS_MAP[selected.status].badge}>{STATUS_MAP[selected.status].label}</span>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold">Ngày tạo</div>
+                  <div className="font-medium">{selected.createdAt}</div>
+                </div>
+                
+                <div className="col-span-2">
+                  <div className="text-[10px] text-gray-400 uppercase font-bold">Phân loại / Nguồn hàng</div>
+                  <div className="font-bold text-gray-800 flex items-center gap-1.5 mt-0.5">
+                    <span className="px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] rounded-lg border border-primary-100 uppercase tracking-wider font-extrabold">
+                      {selected.inboundType === 'transfer' ? 'Chuyển kho' :
+                       selected.inboundType === 'return' ? 'Khách trả' :
+                       selected.inboundType === 'sample' ? 'Hàng tặng' :
+                       selected.inboundType === 'adjustment' ? 'Cân đối' : 'NCC'}
+                    </span>
+                    <span className="truncate">{selected.supplierName}</span>
+                  </div>
+                </div>
+
+                {selected.poReference && (
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">
+                      {selected.inboundType === 'adjustment' ? 'Lý do điều chỉnh' : 'Số PO'}
+                    </div>
+                    <div className="font-medium text-gray-800 text-xs truncate" title={selected.poReference}>
+                      {selected.poReference}
+                    </div>
+                  </div>
+                )}
+
+                {selected.referenceId && (
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">Mã liên kết gốc</div>
+                    <div className="font-mono font-bold text-indigo-600 text-xs truncate" title={selected.referenceId}>
+                      {selected.referenceId}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold">Người tạo</div>
+                  <div className="font-medium">{selected.createdBy}</div>
+                </div>
+                {selected.approvedBy && (
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">Người duyệt</div>
+                    <div className="font-medium">{selected.approvedBy}</div>
+                  </div>
+                )}
               </div>
 
               {selected.note && (
@@ -166,11 +212,25 @@ export default function StockReceiptListPage() {
                 <div className="text-xs font-bold text-gray-800 mb-2">Chi tiết hàng hóa ({selected.items.length} SKU)</div>
                 <div className="space-y-2">
                   {selected.items.map((item, i) => (
-                    <div key={i} className="bg-gray-50 rounded-xl p-3">
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-1.5">
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="text-xs font-bold text-gray-900">{item.productName}</div>
-                          <div className="text-[10px] text-gray-400 font-mono mt-0.5">{item.skuCode}</div>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            <span className="text-[9px] font-mono bg-slate-200 text-slate-700 px-1 py-0.2 rounded font-bold">
+                              {item.skuCode}
+                            </span>
+                            {item.batchNumber && (
+                              <span className="text-[9px] font-mono bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded border border-indigo-100 font-bold">
+                                Lô: {item.batchNumber}
+                              </span>
+                            )}
+                            {item.expiryDate && (
+                              <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.2 rounded border border-emerald-100 font-bold">
+                                HSD: {item.expiryDate}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs font-bold">{item.receivedQty}/{item.orderedQty}</div>
@@ -178,9 +238,9 @@ export default function StockReceiptListPage() {
                         </div>
                       </div>
                       {item.receivedQty < item.orderedQty && (
-                        <div className="text-[10px] text-amber-600 font-semibold mt-1">⚠️ Thiếu {item.orderedQty - item.receivedQty} sp</div>
+                        <div className="text-[10px] text-amber-600 font-semibold">⚠️ Thiếu {item.orderedQty - item.receivedQty} sp</div>
                       )}
-                      {item.note && <div className="text-[10px] text-gray-500 mt-1 italic">{item.note}</div>}
+                      {item.note && <div className="text-[10px] text-gray-500 italic">Ghi chú: {item.note}</div>}
                     </div>
                   ))}
                 </div>
