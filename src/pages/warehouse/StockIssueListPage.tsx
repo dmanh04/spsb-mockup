@@ -180,7 +180,10 @@ export default function StockIssueListPage() {
                     <div key={i} className="bg-gray-50 rounded-xl p-3 flex items-center justify-between">
                       <div>
                         <div className="text-xs font-bold text-gray-900">{item.productName}</div>
-                        <div className="text-[10px] text-gray-400 font-mono">{item.skuCode}</div>
+                        <div className="text-[10px] text-gray-400 font-mono">
+                          {item.skuCode}
+                          {item.batchNumber && <span className="text-indigo-600 font-bold ml-2">Lô: {item.batchNumber}</span>}
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-black text-red-500">-{item.quantity}</div>

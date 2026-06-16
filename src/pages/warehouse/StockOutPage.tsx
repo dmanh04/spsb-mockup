@@ -5,6 +5,7 @@ import { PRODUCT_MOCK_LIST } from '@/data/productMockData'
 import { INVENTORY_ITEMS } from '@/data/inventoryMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { STOCK_ISSUES, saveStockIssues } from '@/data/stockIssueMockData'
+import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
 import { formatPrice } from '@/utils/format'
 import type { StockIssueItem, StockIssueType, StockIssueStatus } from '@/types'
 
@@ -44,20 +45,44 @@ export default function CreateStockIssuePage() {
     return inv ? i.quantity > inv.quantity : false
   })
 
+  const getAvailableBatches = (skuId: string) => {
+    const list: { batchNumber: string; expiryDate: string; qty: number }[] = []
+    STOCK_RECEIPTS.forEach(r => {
+      if (r.status !== 'completed' && r.status !== 'approved') return
+      r.items.forEach(item => {
+        if (item.skuId === skuId && item.batchNumber && item.expiryDate) {
+          const existing = list.find(l => l.batchNumber === item.batchNumber)
+          if (existing) {
+            existing.qty += item.receivedQty
+          } else {
+            list.push({ batchNumber: item.batchNumber, expiryDate: item.expiryDate, qty: item.receivedQty })
+          }
+        }
+      })
+    })
+    return list
+  }
+
   function addItem() {
-    setItems(prev => [...prev, { skuId: '', skuCode: '', productName: '', quantity: 1, unitCost: 0 }])
+    setItems(prev => [...prev, { skuId: '', skuCode: '', productName: '', quantity: 1, unitCost: 0, batchNumber: '', expiryDate: '' }])
   }
 
   function updateItem(idx: number, skuId: string) {
     const inv = warehouseItems.find(i => i.skuId === skuId)
     const product = PRODUCT_MOCK_LIST.find(p => p.skus.some(s => s.id === skuId))
     const sku = product?.skus.find(s => s.id === skuId)
+    
+    const batches = getAvailableBatches(skuId)
+    const defaultBatch = batches[0]
+
     setItems(prev => prev.map((item, i) => i !== idx ? item : {
       ...item,
       skuId,
       skuCode: inv?.skuCode ?? sku?.sku ?? '',
       productName: `${product?.name ?? ''} — ${Object.values(sku?.attributes ?? {}).join('/')}`,
       unitCost: Math.round((sku?.price ?? 0) * 0.65),
+      batchNumber: defaultBatch?.batchNumber || '',
+      expiryDate: defaultBatch?.expiryDate || ''
     }))
   }
 
@@ -187,10 +212,11 @@ export default function CreateStockIssuePage() {
                 <div className="text-sm text-gray-400">Bấm "Thêm SKU" để chọn hàng xuất kho</div>
               </div>
             ) : (
-              <table className="w-full">
+               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     <th className="table-th">SKU / Sản phẩm</th>
+                    <th className="table-th w-44">Số lô / HSD</th>
                     <th className="table-th w-24">Tồn hiện tại</th>
                     <th className="table-th w-24">SL xuất</th>
                     <th className="table-th w-32">Đơn giá</th>
@@ -215,6 +241,39 @@ export default function CreateStockIssuePage() {
                             })}
                           </select>
                           {item.skuCode && <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{item.skuCode}</div>}
+                        </td>
+                        <td className="table-td align-top">
+                          {item.skuId ? (
+                            <div className="space-y-1">
+                              <select
+                                className="form-input text-xs font-mono py-1.5 px-1 w-full"
+                                value={item.batchNumber || ''}
+                                onChange={e => {
+                                  const batchNo = e.target.value
+                                  const found = getAvailableBatches(item.skuId).find(b => b.batchNumber === batchNo)
+                                  setItems(prev => prev.map((it, i) => i !== idx ? it : {
+                                    ...it,
+                                    batchNumber: batchNo,
+                                    expiryDate: found?.expiryDate || ''
+                                  }))
+                                }}
+                              >
+                                <option value="">-- Chọn lô --</option>
+                                {getAvailableBatches(item.skuId).map(b => (
+                                  <option key={b.batchNumber} value={b.batchNumber}>
+                                    {b.batchNumber} (Còn: {b.qty})
+                                  </option>
+                                ))}
+                              </select>
+                              {item.batchNumber && (
+                                <span className="text-[9px] font-bold text-indigo-600 block mt-0.5">
+                                  HSD: {item.expiryDate}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                         <td className="table-td">
                           <span className={`text-sm font-bold ${currentStock < 5 ? 'text-amber-500' : 'text-gray-700'}`}>

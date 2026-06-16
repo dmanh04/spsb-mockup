@@ -296,7 +296,10 @@ export default function TransfersPage() {
                     <div key={i} className="bg-gray-50 rounded-xl p-2.5 flex justify-between items-center text-xs">
                       <div>
                         <div className="font-bold text-gray-900">{item.productName}</div>
-                        <div className="text-[9px] text-gray-400 font-mono mt-0.5">{item.skuCode}</div>
+                        <div className="text-[9px] text-gray-400 font-mono mt-0.5">
+                          {item.skuCode}
+                          {item.batchNumber && <span className="text-indigo-600 font-bold ml-2">Lô: {item.batchNumber}</span>}
+                        </div>
                       </div>
                       <span className="font-bold text-sm bg-white border px-2 py-0.5 rounded shadow-sm text-gray-700">×{item.quantity}</span>
                     </div>

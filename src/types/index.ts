@@ -335,7 +335,7 @@ export interface StockTransfer {
   id: string
   fromShopId: string | 'warehouse'
   toShopId: string | 'warehouse'
-  items: { skuId: string; skuCode: string; productName: string; quantity: number; receivedQty?: number }[]
+  items: { skuId: string; skuCode: string; productName: string; quantity: number; receivedQty?: number; batchNumber?: string; expiryDate?: string }[]
   status: TransferStatus
   requestedBy: string
   requestedAt: string
@@ -389,6 +389,8 @@ export interface StockIssueItem {
   productName: string
   quantity: number
   unitCost: number
+  batchNumber?: string
+  expiryDate?: string
 }
 
 export interface StockIssue {

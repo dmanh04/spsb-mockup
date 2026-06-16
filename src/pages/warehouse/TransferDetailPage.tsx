@@ -184,7 +184,10 @@ export default function TransferDetailPage() {
             {transfer.items.map((item, i) => (
               <tr key={i} className="hover:bg-gray-50/50">
                 <td className="table-td py-3 text-sm font-medium text-gray-900">{item.productName}</td>
-                <td className="table-td py-3 font-mono text-xs text-gray-400">{item.skuCode}</td>
+                <td className="table-td py-3 font-mono text-xs text-gray-400">
+                  {item.skuCode}
+                  {item.batchNumber && <span className="text-indigo-650 font-bold ml-3">Lô: {item.batchNumber}</span>}
+                </td>
                 <td className="table-td py-3 text-right font-bold text-gray-900">{item.quantity}</td>
               </tr>
             ))}

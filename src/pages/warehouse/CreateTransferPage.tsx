@@ -5,13 +5,22 @@ import { PRODUCT_MOCK_LIST } from '@/data/productMockData'
 import { INVENTORY_ITEMS } from '@/data/inventoryMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { TRANSFER_MOCK_LIST, saveTransfers } from '@/data/transferMockData'
+import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
 
 const SHOPS = [
   { id: 'warehouse', name: 'Kho Trung Tâm' },
   ...SHOP_MOCK_LIST.map(s => ({ id: s.id, name: s.name })),
 ]
 
-interface TransferItem { skuId: string; skuCode: string; productName: string; quantity: number; currentStock: number }
+interface TransferItem { 
+  skuId: string
+  skuCode: string
+  productName: string
+  quantity: number
+  currentStock: number
+  batchNumber?: string
+  expiryDate?: string
+}
 
 export default function CreateTransferPage() {
   const navigate = useNavigate()
@@ -28,16 +37,44 @@ export default function CreateTransferPage() {
   const sourceItems = INVENTORY_ITEMS.filter(i => i.shopId === fromShopId)
   const hasOverStock = items.some(i => i.skuId && i.quantity > i.currentStock)
 
+  const getAvailableBatches = (skuId: string) => {
+    const list: { batchNumber: string; expiryDate: string; qty: number }[] = []
+    STOCK_RECEIPTS.forEach(r => {
+      if (r.status !== 'completed' && r.status !== 'approved') return
+      r.items.forEach(item => {
+        if (item.skuId === skuId && item.batchNumber && item.expiryDate) {
+          const existing = list.find(l => l.batchNumber === item.batchNumber)
+          if (existing) {
+            existing.qty += item.receivedQty
+          } else {
+            list.push({ batchNumber: item.batchNumber, expiryDate: item.expiryDate, qty: item.receivedQty })
+          }
+        }
+      })
+    })
+    return list
+  }
+
   function addItem() {
-    setItems(prev => [...prev, { skuId: '', skuCode: '', productName: '', quantity: 1, currentStock: 0 }])
+    setItems(prev => [...prev, { skuId: '', skuCode: '', productName: '', quantity: 1, currentStock: 0, batchNumber: '', expiryDate: '' }])
   }
 
   function updateItem(idx: number, skuId: string) {
     const inv = sourceItems.find(i => i.skuId === skuId)
     const product = PRODUCT_MOCK_LIST.find(p => p.skus.some(s => s.id === skuId))
     const sku = product?.skus.find(s => s.id === skuId)
+    
+    const batches = getAvailableBatches(skuId)
+    const defaultBatch = batches[0]
+
     setItems(prev => prev.map((item, i) => i !== idx ? item : {
-      ...item, skuId, skuCode: inv?.skuCode ?? '', productName: `${product?.name ?? ''} — ${Object.values(sku?.attributes ?? {}).join('/')}`, currentStock: inv?.quantity ?? 0,
+      ...item, 
+      skuId, 
+      skuCode: inv?.skuCode ?? '', 
+      productName: `${product?.name ?? ''} — ${Object.values(sku?.attributes ?? {}).join('/')}`, 
+      currentStock: inv?.quantity ?? 0,
+      batchNumber: defaultBatch?.batchNumber || '',
+      expiryDate: defaultBatch?.expiryDate || ''
     }))
   }
 
@@ -47,7 +84,7 @@ export default function CreateTransferPage() {
 
     if (!toShopId) { setError('Chọn kho/chi nhánh đích'); return }
     if (fromShopId === toShopId) { setError('Kho nguồn và đích không được trùng'); return }
-    if (items.length === 0) { setError('Thêm ít nhất 1 SKU'); return }
+    if (items.length === 0) { setError('Thêm nhất 1 SKU'); return }
     if (items.some(i => !i.skuId)) { setError('Có SKU chưa chọn'); return }
     if (hasOverStock) { setError('Có SKU vượt tồn kho'); return }
 
@@ -58,7 +95,14 @@ export default function CreateTransferPage() {
       id: newId,
       fromShopId,
       toShopId,
-      items: items.map(i => ({ skuId: i.skuId, skuCode: i.skuCode, productName: i.productName, quantity: i.quantity })),
+      items: items.map(i => ({ 
+        skuId: i.skuId, 
+        skuCode: i.skuCode, 
+        productName: i.productName, 
+        quantity: i.quantity,
+        batchNumber: i.batchNumber,
+        expiryDate: i.expiryDate
+      })),
       status: 'pending' as const,
       requestedBy: 'Bùi Văn Khánh',
       requestedAt: now,
@@ -151,6 +195,7 @@ export default function CreateTransferPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="table-th">SKU / Sản phẩm</th>
+                  <th className="table-th w-44">Số lô / HSD</th>
                   <th className="table-th w-24">Tồn nguồn</th>
                   <th className="table-th w-24">SL chuyển</th>
                   <th className="table-th w-10"></th>
@@ -171,6 +216,39 @@ export default function CreateTransferPage() {
                           })}
                         </select>
                         {item.skuCode && <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{item.skuCode}</div>}
+                      </td>
+                      <td className="table-td align-top">
+                        {item.skuId ? (
+                          <div className="space-y-1">
+                            <select
+                              className="form-input text-xs font-mono py-1.5 px-1 w-full"
+                              value={item.batchNumber || ''}
+                              onChange={e => {
+                                const batchNo = e.target.value
+                                const found = getAvailableBatches(item.skuId).find(b => b.batchNumber === batchNo)
+                                setItems(prev => prev.map((it, i) => i !== idx ? it : {
+                                  ...it,
+                                  batchNumber: batchNo,
+                                  expiryDate: found?.expiryDate || ''
+                                }))
+                              }}
+                            >
+                              <option value="">-- Chọn lô --</option>
+                              {getAvailableBatches(item.skuId).map(b => (
+                                  <option key={b.batchNumber} value={b.batchNumber}>
+                                    {b.batchNumber} (Còn: {b.qty})
+                                  </option>
+                                ))}
+                            </select>
+                            {item.batchNumber && (
+                              <span className="text-[9px] font-bold text-indigo-600 block mt-0.5">
+                                HSD: {item.expiryDate}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
                       </td>
                       <td className="table-td font-bold text-sm">{item.skuId ? item.currentStock : '—'}</td>
                       <td className="table-td">
