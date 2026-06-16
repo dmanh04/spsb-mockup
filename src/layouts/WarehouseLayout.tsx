@@ -7,7 +7,7 @@ const NAV: NavItem[] = [
   { to: '/warehouse/stock-out', label: 'Xuất kho', icon: PackageMinus },
   { to: '/warehouse/transfers', label: 'Phiếu chuyển kho', icon: ArrowLeftRight, badge: 2 },
   { to: '/warehouse/history', label: 'Lịch sử kho', icon: History },
-  { to: '/warehouse/suppliers', label: 'Nhà cung cấp', icon: Truck },
+  { to: '/warehouse/suppliers', label: 'Mua hàng & NCC', icon: Truck },
   { to: '/warehouse/reports', label: 'Báo cáo', icon: BarChart3 },
 ]
 
