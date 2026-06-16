@@ -5,6 +5,7 @@ import { TRANSFER_MOCK_LIST, saveTransfers } from '@/data/transferMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import type { StockTransfer, TransferStatus } from '@/types'
+import { useAuthContext } from '@/auth/AuthContext'
 
 const STATUS_LABELS: Record<TransferStatus, string> = {
   pending: 'Chờ duyệt', approved: 'Đã duyệt', picking: 'Đang lấy hàng', shipped: 'Đã xuất hàng',
@@ -23,16 +24,22 @@ function shopName(id: string | 'warehouse') {
 }
 
 export default function TransfersPage() {
+  const { currentUser } = useAuthContext()
+  const role = currentUser?.role ?? 'warehouse_manager'
+  const isShopHead = role === 'shop_head'
+  const myShopId = currentUser?.shopId ?? 'SH01'
+
   const location = useLocation()
   const navigate = useNavigate()
-  const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : '/warehouse'
+  const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : location.pathname.startsWith('/shop-head') ? '/shop-head' : '/warehouse'
 
   const [transfers, setTransfers] = useState(TRANSFER_MOCK_LIST)
   const [filter, setFilter] = useState<TransferStatus | 'all'>('all')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const filtered = transfers
+  const myTransfers = transfers.filter(t => !isShopHead || t.fromShopId === myShopId || t.toShopId === myShopId)
+  const filtered = myTransfers
     .filter(t => filter === 'all' || t.status === filter)
     .filter(t => {
       if (!search) return true
@@ -46,7 +53,7 @@ export default function TransfersPage() {
       )
     })
 
-  const pendingCount = transfers.filter(t => t.status === 'pending').length
+  const pendingCount = myTransfers.filter(t => t.status === 'pending').length
   const selected = selectedId ? transfers.find(t => t.id === selectedId) : null
 
   function updateStatus(id: string, newStatus: TransferStatus) {
@@ -57,7 +64,7 @@ export default function TransfersPage() {
       if (t.id !== id) return t
       const updated: StockTransfer = { ...t, status: newStatus }
       if (newStatus === 'approved') {
-        updated.approvedBy = 'Bùi Văn Khánh'
+        updated.approvedBy = currentUser?.fullName ?? 'Bùi Văn Khánh'
       }
       return updated
     })
@@ -92,7 +99,7 @@ export default function TransfersPage() {
           shopId: transfer.fromShopId,
           quantity: -item.quantity,
           note: `Xuất chuyển kho đến ${shopName(transfer.toShopId)} (Phiếu: ${transfer.id})`,
-          createdBy: 'Bùi Văn Khánh',
+          createdBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
           createdAt: todayStr,
           transferId: transfer.id
         })
@@ -131,7 +138,7 @@ export default function TransfersPage() {
           shopId: transfer.toShopId,
           quantity: item.quantity,
           note: `Nhận hàng chuyển từ ${shopName(transfer.fromShopId)} (Phiếu: ${transfer.id})`,
-          createdBy: 'Bùi Văn Khánh',
+          createdBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
           createdAt: todayStr,
           transferId: transfer.id
         })
@@ -202,7 +209,7 @@ export default function TransfersPage() {
                     <td className="table-td text-xs text-gray-400">{t.requestedAt.split(' ')[0]}</td>
                     <td className="table-td text-center">
                       <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                        {t.status === 'pending' && (
+                        {t.status === 'pending' && !isShopHead && (
                           <>
                             <button onClick={() => updateStatus(t.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt">
                               <CheckCircle size={15} />
@@ -212,12 +219,12 @@ export default function TransfersPage() {
                             </button>
                           </>
                         )}
-                        {t.status === 'approved' && (
+                        {t.status === 'approved' && !isShopHead && (
                           <button onClick={() => updateStatus(t.id, 'shipped')} className="px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
                             Xuất kho
                           </button>
                         )}
-                        {t.status === 'shipped' && (
+                        {t.status === 'shipped' && (isShopHead ? t.toShopId === myShopId : true) && (
                           <button onClick={() => updateStatus(t.id, 'received')} className="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
                             Nhận hàng
                           </button>
@@ -308,7 +315,7 @@ export default function TransfersPage() {
               </div>
 
               {/* Actions inside Detail Panel */}
-              {selected.status === 'pending' && (
+              {selected.status === 'pending' && !isShopHead && (
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
                   <button onClick={() => updateStatus(selected.id, 'approved')} className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
                     <CheckCircle size={13} /> Duyệt
@@ -318,12 +325,12 @@ export default function TransfersPage() {
                   </button>
                 </div>
               )}
-              {selected.status === 'approved' && (
+              {selected.status === 'approved' && !isShopHead && (
                 <button onClick={() => updateStatus(selected.id, 'shipped')} className="w-full py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
                   <Truck size={13} /> Đánh dấu Đang vận chuyển
                 </button>
               )}
-              {selected.status === 'shipped' && (
+              {selected.status === 'shipped' && (isShopHead ? selected.toShopId === myShopId : true) && (
                 <button onClick={() => updateStatus(selected.id, 'received')} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
                   <CheckCircle size={13} /> Xác nhận Đã nhận hàng
                 </button>

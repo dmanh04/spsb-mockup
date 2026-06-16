@@ -486,7 +486,7 @@ export default function CreateStockReceiptPage() {
                     onChange={e => setSupplierId(e.target.value)}
                   >
                     <option value="">-- Chọn nhà cung cấp từ hệ thống --</option>
-                    {SUPPLIER_MOCK_LIST.map(s => (
+                    {SUPPLIER_MOCK_LIST.filter(s => s.status === 'active').map(s => (
                       <option key={s.id} value={s.id}>{s.name} ({s.contactPerson})</option>
                     ))}
                   </select>
@@ -557,7 +557,7 @@ export default function CreateStockReceiptPage() {
                       onChange={e => setSupplierId(e.target.value)}
                     >
                       <option value="">-- Chọn đối tác tặng hàng --</option>
-                      {SUPPLIER_MOCK_LIST.map(s => (
+                      {SUPPLIER_MOCK_LIST.filter(s => s.status === 'active').map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>

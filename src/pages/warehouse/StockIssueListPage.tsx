@@ -5,6 +5,8 @@ import { STOCK_ISSUES, saveStockIssues } from '@/data/stockIssueMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
 import type { StockIssueStatus, StockIssueType } from '@/types'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
+import { useAuthContext } from '@/auth/AuthContext'
 
 const STATUS_MAP: Record<StockIssueStatus, { label: string; badge: string }> = {
   draft: { label: 'Nháp', badge: 'badge-gray' },
@@ -23,6 +25,7 @@ const TYPE_MAP: Record<StockIssueType, { label: string; badge: string }> = {
 }
 
 export default function StockIssueListPage() {
+  const { currentUser } = useAuthContext()
   const location = useLocation()
   const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : '/warehouse'
   const [issues, setIssues] = useState(STOCK_ISSUES)
@@ -52,9 +55,47 @@ export default function StockIssueListPage() {
   }
 
   function complete(id: string) {
+    const issue = issues.find(r => r.id === id)
+    if (!issue) return
+
     const next = issues.map(r => r.id === id ? { ...r, status: 'completed' as const } : r)
     setIssues(next)
     saveStockIssues(next)
+
+    // Deduct stock levels and log transactions
+    const updatedInventory = [...INVENTORY_ITEMS]
+    const updatedTx = [...INVENTORY_TRANSACTIONS]
+    const todayStr = new Date().toISOString().slice(0, 10)
+
+    issue.items.forEach(item => {
+      const idx = updatedInventory.findIndex(
+        i => i.skuId === item.skuId && i.shopId === issue.warehouseId
+      )
+
+      if (idx > -1) {
+        updatedInventory[idx] = {
+          ...updatedInventory[idx],
+          quantity: Math.max(0, updatedInventory[idx].quantity - item.quantity),
+          lastUpdated: todayStr
+        }
+      }
+
+      updatedTx.unshift({
+        id: `TX-OUT${Math.floor(1000 + Math.random() * 9000)}`,
+        type: 'stock_out',
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        productName: item.productName,
+        shopId: issue.warehouseId,
+        quantity: -item.quantity,
+        note: `Xuất kho hoàn tất phiếu ${issue.id} (Lý do: ${issue.reason})`,
+        createdBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        issueId: issue.id
+      })
+    })
+
+    saveInventory(updatedInventory, updatedTx)
   }
 
   function cancel(id: string) {

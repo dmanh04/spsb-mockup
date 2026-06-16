@@ -6,6 +6,7 @@ import { INVENTORY_ITEMS } from '@/data/inventoryMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { TRANSFER_MOCK_LIST, saveTransfers } from '@/data/transferMockData'
 import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
+import { useAuthContext } from '@/auth/AuthContext'
 
 const SHOPS = [
   { id: 'warehouse', name: 'Kho Trung Tâm' },
@@ -23,12 +24,17 @@ interface TransferItem {
 }
 
 export default function CreateTransferPage() {
+  const { currentUser } = useAuthContext()
+  const role = currentUser?.role ?? 'warehouse_manager'
+  const isShopHead = role === 'shop_head'
+  const myShopId = currentUser?.shopId ?? 'SH01'
+
   const navigate = useNavigate()
   const location = useLocation()
-  const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : '/warehouse'
+  const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : location.pathname.startsWith('/shop-head') ? '/shop-head' : '/warehouse'
 
   const [fromShopId, setFromShopId] = useState('warehouse')
-  const [toShopId, setToShopId] = useState('')
+  const [toShopId, setToShopId] = useState(isShopHead ? myShopId : '')
   const [note, setNote] = useState('')
   const [items, setItems] = useState<TransferItem[]>([])
   const [toast, setToast] = useState('')
@@ -104,7 +110,7 @@ export default function CreateTransferPage() {
         expiryDate: i.expiryDate
       })),
       status: 'pending' as const,
-      requestedBy: 'Bùi Văn Khánh',
+      requestedBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
       requestedAt: now,
       note,
     }
@@ -153,7 +159,7 @@ export default function CreateTransferPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="form-label">Kho nguồn <span className="text-rose-500">*</span></label>
-              <select className="form-input" value={fromShopId} onChange={e => { setFromShopId(e.target.value); setItems([]) }}>
+              <select className="form-input" value={fromShopId} onChange={e => { setFromShopId(e.target.value); setItems([]) }} disabled={isShopHead}>
                 {SHOPS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
@@ -165,7 +171,7 @@ export default function CreateTransferPage() {
             </div>
             <div className="flex-1">
               <label className="form-label">Kho đích <span className="text-rose-500">*</span></label>
-              <select className="form-input" value={toShopId} onChange={e => setToShopId(e.target.value)}>
+              <select className="form-input" value={toShopId} onChange={e => setToShopId(e.target.value)} disabled={isShopHead}>
                 <option value="">-- Chọn kho đích --</option>
                 {SHOPS.filter(s => s.id !== fromShopId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>

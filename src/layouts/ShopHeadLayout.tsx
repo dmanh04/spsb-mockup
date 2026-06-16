@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, CalendarDays, FileCheck,
-  CalendarCheck, DoorOpen, ShoppingBag, Package, Tag, BarChart3,
+  CalendarCheck, DoorOpen, ShoppingBag, Package, Tag, BarChart3, ArrowLeftRight
 } from 'lucide-react'
 import BaseLayout, { type NavItem } from './_BaseLayout'
 
@@ -12,6 +12,7 @@ const NAV: NavItem[] = [
   { to: '/shop-head/bookings', label: 'Booking chi nhánh', icon: CalendarCheck },
   { to: '/shop-head/rooms', label: 'Quản lý phòng', icon: DoorOpen },
   { to: '/shop-head/products', label: 'Sản phẩm', icon: ShoppingBag },
+  { to: '/shop-head/transfers', label: 'Phiếu chuyển kho', icon: ArrowLeftRight },
   { to: '/shop-head/orders', label: 'Đơn hàng', icon: Package },
   { to: '/shop-head/vouchers', label: 'Voucher', icon: Tag },
   { to: '/shop-head/reports', label: 'Báo cáo', icon: BarChart3 },

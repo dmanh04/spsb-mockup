@@ -10,6 +10,7 @@ import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
 import { STOCK_ISSUES } from '@/data/stockIssueMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
+import { PURCHASE_ORDER_LIST } from '@/data/supplierMockData'
 
 export default function WarehouseDashboardPage() {
   const warehouseItems = INVENTORY_ITEMS.filter(i => i.shopId === 'warehouse')
@@ -18,6 +19,7 @@ export default function WarehouseDashboardPage() {
   const pendingTransfers = TRANSFER_MOCK_LIST.filter(t => t.status === 'pending')
   const pendingReceipts = STOCK_RECEIPTS.filter(r => r.status === 'pending_approval')
   const pendingIssues = STOCK_ISSUES.filter(r => r.status === 'pending_approval')
+  const pendingPOs = PURCHASE_ORDER_LIST.filter(o => o.status === 'sent')
   const recentTx = [...INVENTORY_TRANSACTIONS].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6)
 
   const totalInventoryValue = INVENTORY_ITEMS.reduce((s, i) => s + i.quantity * (i.unitPrice || 0), 0)
@@ -35,7 +37,7 @@ export default function WarehouseDashboardPage() {
     adjustment: 'bg-gray-100 text-gray-600 border-gray-200',
   }
 
-  const pendingTotal = pendingReceipts.length + pendingIssues.length + pendingTransfers.length
+  const pendingTotal = pendingReceipts.length + pendingIssues.length + pendingTransfers.length + pendingPOs.length
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -85,7 +87,7 @@ export default function WarehouseDashboardPage() {
         {[
           { label: 'Tổng SKU theo dõi', value: totalSKUs, sub: `${warehouseItems.length} tại kho TT`, icon: Boxes, color: 'text-blue-600', bg: 'bg-gradient-to-br from-blue-50 to-blue-100/50', border: 'border-blue-100' },
           { label: 'Cần bổ sung', value: lowStock.length + outOfStock.length, sub: `${outOfStock.length} hết · ${lowStock.length} sắp hết`, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-gradient-to-br from-amber-50 to-amber-100/50', border: 'border-amber-100' },
-          { label: 'Phiếu chờ duyệt', value: pendingTotal, sub: `${pendingReceipts.length} nhập · ${pendingIssues.length} xuất · ${pendingTransfers.length} chuyển`, icon: FileText, color: 'text-indigo-600', bg: 'bg-gradient-to-br from-indigo-50 to-indigo-100/50', border: 'border-indigo-100' },
+          { label: 'Phiếu chờ duyệt', value: pendingTotal, sub: `${pendingReceipts.length} nhập · ${pendingIssues.length} xuất · ${pendingTransfers.length} chuyển · ${pendingPOs.length} PO`, icon: FileText, color: 'text-indigo-600', bg: 'bg-gradient-to-br from-indigo-50 to-indigo-100/50', border: 'border-indigo-100' },
           { label: 'Giá trị tồn kho', value: totalInventoryValue > 0 ? formatPrice(totalInventoryValue) : '—', sub: 'Ước tính toàn hệ thống', icon: Package, color: 'text-emerald-600', bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50', border: 'border-emerald-100' },
         ].map(s => (
           <div key={s.label} className={`rounded-2xl border ${s.border} ${s.bg} p-5 shadow-sm`}>
@@ -115,6 +117,7 @@ export default function WarehouseDashboardPage() {
               { label: 'Tạo phiếu nhập kho (GRN)', path: '/warehouse/receipts/new', icon: ArrowDownToLine, color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
               { label: 'Tạo phiếu xuất kho (GIN)', path: '/warehouse/issues/new', icon: ArrowUpFromLine, color: 'text-red-500 bg-red-50 hover:bg-red-100' },
               { label: 'Tạo phiếu chuyển kho', path: '/warehouse/transfers/new', icon: ArrowLeftRight, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100' },
+              { label: 'Đơn mua hàng (PO)', path: '/warehouse/replenishments', icon: ClipboardCheck, color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
               { label: 'Kiểm kê tồn kho', path: '/warehouse/stock-count', icon: ClipboardCheck, color: 'text-purple-600 bg-purple-50 hover:bg-purple-100' },
               { label: 'Xem tồn kho', path: '/warehouse/stock-in', icon: Boxes, color: 'text-gray-600 bg-gray-50 hover:bg-gray-100' },
             ].map(a => (
@@ -198,9 +201,9 @@ export default function WarehouseDashboardPage() {
         </div>
       </div>
 
-      {/* Pending Receipts & Issues */}
-      {(pendingReceipts.length > 0 || pendingIssues.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Pending Receipts, Issues & POs */}
+      {(pendingReceipts.length > 0 || pendingIssues.length > 0 || pendingPOs.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Pending Receipts */}
           {pendingReceipts.length > 0 && (
             <div className="card border-amber-100">
@@ -243,6 +246,30 @@ export default function WarehouseDashboardPage() {
                     </div>
                     <div className="text-xs text-gray-700 mt-0.5">{r.reason}</div>
                     <div className="text-[10px] text-gray-400 mt-0.5">{r.items.length} SKU · {r.createdAt}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pending POs */}
+          {pendingPOs.length > 0 && (
+            <div className="card border-indigo-100">
+              <div className="card-header flex items-center justify-between bg-indigo-50/30">
+                <h2 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                  <Clock size={14} /> Đơn PO chờ duyệt ({pendingPOs.length})
+                </h2>
+                <Link to="/warehouse/replenishments" className="text-xs text-indigo-700 hover:underline font-semibold">Xem tất cả</Link>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {pendingPOs.map(r => (
+                  <div key={r.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-indigo-650">{r.id}</span>
+                      <span className="badge-orange text-[10px]">Chờ duyệt</span>
+                    </div>
+                    <div className="text-xs text-gray-700 mt-0.5">{r.supplierName}</div>
+                    <div className="text-[10px] text-gray-400 mt-0.5">{r.items.length} SKU · {formatPrice(r.total)}</div>
                   </div>
                 ))}
               </div>

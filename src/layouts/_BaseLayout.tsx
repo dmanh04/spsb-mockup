@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
-import { LogOut, Bell, PawPrint, Search, X, ChevronRight } from 'lucide-react'
+import { LogOut, Bell, PawPrint, Search, X, ChevronRight, AlertTriangle } from 'lucide-react'
 import { useAuthContext } from '@/auth/AuthContext'
 import { NOTIFICATION_MOCK_LIST, NOTIF_ICONS, NOTIF_COLORS } from '@/data/notificationMockData'
 import { BOOKING_MOCK_LIST } from '@/data/bookingMockData'
 import { PRODUCT_MOCK_LIST } from '@/data/productMockData'
+import { INVENTORY_ITEMS } from '@/data/inventoryMockData'
 import type { LucideIcon } from 'lucide-react'
 
 export interface NavItem {
@@ -176,6 +177,15 @@ export default function BaseLayout({ title, subtitle, accentClass, navItems }: P
     n => !n.read && n.forRoles.includes(currentUser?.role ?? '')
   ).length
 
+  const lowStockCount = INVENTORY_ITEMS.filter(item => {
+    if (currentUser?.role === 'admin' || currentUser?.role === 'warehouse_manager') {
+      return item.quantity <= item.minStock
+    } else if (currentUser?.shopId) {
+      return item.shopId === currentUser.shopId && item.quantity <= item.minStock
+    }
+    return false
+  }).length
+
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -258,6 +268,19 @@ export default function BaseLayout({ title, subtitle, accentClass, navItems }: P
             <h1 className="text-sm font-semibold text-gray-700">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Low stock warning */}
+            {lowStockCount > 0 && (
+              <Link
+                to={currentUser?.role === 'shop_head' ? '/shop-head/products' : (currentUser?.role === 'admin' ? '/admin/inventory' : '/warehouse')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-250/30 text-amber-700 rounded-lg text-xs font-bold transition-all shadow-xs mr-1 animate-pulse"
+                title={`Có ${lowStockCount} mặt hàng dưới ngưỡng tồn kho an toàn!`}
+              >
+                <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                <span className="hidden md:inline">Cảnh báo tồn kho ({lowStockCount})</span>
+                <span className="md:hidden">({lowStockCount})</span>
+              </Link>
+            )}
+
             {/* Global search */}
             <button
               onClick={() => setShowSearch(true)}

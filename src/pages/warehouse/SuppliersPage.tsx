@@ -3,7 +3,7 @@ import {
   Plus, Edit, Phone, Mail, MapPin, Search, CheckCircle, XCircle
 } from 'lucide-react'
 import { 
-  SUPPLIER_MOCK_LIST, saveSuppliers, Supplier 
+  SUPPLIER_MOCK_LIST, saveSuppliers, Supplier, PURCHASE_ORDER_LIST
 } from '@/data/supplierMockData'
 
 export default function SuppliersPage() {
@@ -62,6 +62,27 @@ export default function SuppliersPage() {
     let nextSuppliers: Supplier[] = []
 
     if (editingSupplier) {
+      if (editingSupplier.status === 'active' && supFormStatus === 'inactive') {
+        const hasPending = PURCHASE_ORDER_LIST.some(o => o.supplierId === editingSupplier.id && (o.status === 'sent' || o.status === 'confirmed'))
+        if (hasPending) {
+          alert(`Không thể ngừng hoạt động: Nhà cung cấp này hiện đang có đơn mua hàng PO đang chờ duyệt hoặc chờ giao hàng.`)
+          return
+        }
+
+        const uniqueWarningCategories: string[] = []
+        editingSupplier.productCategories.forEach(cat => {
+          const otherActiveForCat = suppliers.some(s => s.id !== editingSupplier.id && s.status === 'active' && s.productCategories.includes(cat))
+          if (!otherActiveForCat) {
+            uniqueWarningCategories.push(cat)
+          }
+        })
+
+        if (uniqueWarningCategories.length > 0) {
+          const confirmStop = confirm(`Cảnh báo: Đây là nhà cung cấp HOẠT ĐỘNG DUY NHẤT cung cấp danh mục: ${uniqueWarningCategories.join(', ')}. Bạn có chắc chắn vẫn muốn ngừng hoạt động nhà cung cấp này?`)
+          if (!confirmStop) return
+        }
+      }
+
       nextSuppliers = suppliers.map(s => {
         if (s.id !== editingSupplier.id) return s
         return {
@@ -102,10 +123,36 @@ export default function SuppliersPage() {
   }
 
   function toggleSupplierStatus(supplierId: string) {
+    const supplier = suppliers.find(s => s.id === supplierId)
+    if (!supplier) return
+
+    if (supplier.status === 'active') {
+      // Check pending orders
+      const hasPending = PURCHASE_ORDER_LIST.some(o => o.supplierId === supplierId && (o.status === 'sent' || o.status === 'confirmed'))
+      if (hasPending) {
+        alert(`Không thể ngừng hoạt động: Nhà cung cấp này hiện đang có đơn mua hàng PO đang chờ duyệt hoặc chờ giao hàng.`)
+        return
+      }
+
+      // Check last supplier in categories
+      const uniqueWarningCategories: string[] = []
+      supplier.productCategories.forEach(cat => {
+        const otherActiveForCat = suppliers.some(s => s.id !== supplierId && s.status === 'active' && s.productCategories.includes(cat))
+        if (!otherActiveForCat) {
+          uniqueWarningCategories.push(cat)
+        }
+      })
+
+      if (uniqueWarningCategories.length > 0) {
+        const confirmStop = confirm(`Cảnh báo: Đây là nhà cung cấp HOẠT ĐỘNG DUY NHẤT cung cấp danh mục: ${uniqueWarningCategories.join(', ')}. Bạn có chắc chắn vẫn muốn ngừng hoạt động nhà cung cấp này?`)
+        if (!confirmStop) return
+      }
+    }
+
     const next = suppliers.map(s => {
       if (s.id !== supplierId) return s
       const newStatus = s.status === 'active' ? 'inactive' : 'active'
-      showToast(`Đã chuyển trạng thái nhà cung cấp thành: ${newStatus === 'active' ? 'Hoạt động' : 'Khóa'}`)
+      showToast(`Đã chuyển trạng thái nhà cung cấp thành: ${newStatus === 'active' ? 'Hoạt động' : 'Tạm dừng'}`)
       return { ...s, status: newStatus as 'active' | 'inactive' }
     })
     setSuppliers(next)

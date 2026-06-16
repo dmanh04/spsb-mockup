@@ -11,6 +11,7 @@ import { STOCK_ISSUES } from '@/data/stockIssueMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
 import { addNotification } from '@/data/notificationMockData'
+import { PURCHASE_ORDER_LIST } from '@/data/supplierMockData'
 
 interface WarehousePing {
   id: string
@@ -212,6 +213,7 @@ export default function AdminInventoryPage() {
   const totalSKUs = new Set(INVENTORY_ITEMS.map(i => i.skuCode)).size
   const pendingReceipts = STOCK_RECEIPTS.filter(r => r.status === 'pending_approval').length
   const pendingIssues = STOCK_ISSUES.filter(r => r.status === 'pending_approval').length
+  const pendingPOs = PURCHASE_ORDER_LIST.filter(o => o.status === 'sent').length
 
   return (
     <div className="space-y-6 text-sm animate-fadeIn">
@@ -220,7 +222,7 @@ export default function AdminInventoryPage() {
         <div>
           <h1 className="text-2xl font-black text-gray-900">Quản lý Kho Toàn hệ thống</h1>
           <p className="text-gray-500 mt-1 font-medium">
-            {totalSKUs} SKU · {INVENTORY_TRANSACTIONS.length} giao dịch · {pendingReceipts + pendingIssues > 0 && <span className="text-amber-600">{pendingReceipts + pendingIssues} phiếu chờ duyệt</span>}
+            {totalSKUs} SKU · {INVENTORY_TRANSACTIONS.length} giao dịch · {pendingReceipts + pendingIssues + pendingPOs > 0 && <span className="text-amber-600">{pendingReceipts + pendingIssues + pendingPOs} phiếu chờ duyệt</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -256,7 +258,7 @@ export default function AdminInventoryPage() {
               { label: 'Tổng SKU', value: totalSKUs, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
               { label: 'Hết hàng', value: outOfStock.length, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
               { label: 'Sắp hết', value: lowStock.length, icon: TrendingDown, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-              { label: 'Phiếu chờ duyệt', value: pendingReceipts + pendingIssues, icon: ClipboardList, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+              { label: 'Phiếu chờ duyệt', value: pendingReceipts + pendingIssues + pendingPOs, icon: ClipboardList, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
             ].map(s => (
               <div key={s.label} className={`rounded-2xl border ${s.border} ${s.bg} p-5 shadow-sm`}>
                 <div className="flex items-start justify-between">
@@ -271,12 +273,13 @@ export default function AdminInventoryPage() {
           </div>
 
           {/* Quick Links */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               { label: 'Phiếu nhập kho', path: '/admin/inventory/receipts', icon: ArrowDownToLine, count: pendingReceipts, color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200' },
               { label: 'Phiếu xuất kho', path: '/admin/inventory/issues', icon: ArrowUpFromLine, count: pendingIssues, color: 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200' },
               { label: 'Phiếu chuyển kho', path: '/admin/inventory/transfers', icon: ArrowLeftRight, count: 0, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200' },
               { label: 'Kiểm kê kho', path: '/admin/inventory/stock-count', icon: ClipboardList, count: 0, color: 'text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-200' },
+              { label: 'Đơn mua hàng (PO)', path: '/admin/inventory/replenishments', icon: ClipboardList, count: pendingPOs, color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200' },
             ].map(a => (
               <Link key={a.path} to={a.path} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${a.color}`}>
                 <a.icon size={20} />

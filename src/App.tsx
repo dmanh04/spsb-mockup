@@ -93,6 +93,7 @@ import StockCountPage from './pages/warehouse/StockCountPage'
 import HistoryPage from './pages/warehouse/HistoryPage'
 import SuppliersPage from './pages/warehouse/SuppliersPage'
 import WarehouseReportsPage from './pages/warehouse/WarehouseReportsPage'
+import ReplenishmentsPage from './pages/warehouse/ReplenishmentsPage'
 
 export default function App() {
   return (
@@ -163,6 +164,7 @@ export default function App() {
           <Route path="orders" element={<ShopHeadOrdersPage />} />
           <Route path="vouchers" element={<ShopHeadVouchersPage />} />
           <Route path="vouchers/new" element={<ShopHeadVoucherFormPage />} />
+          <Route path="transfers" element={<TransfersPage />} />
           <Route path="reports" element={<ShopHeadReportsPage />} />
         </Route>
 
@@ -196,6 +198,8 @@ export default function App() {
           <Route path="inventory/transfers/:id" element={<TransferDetailPage />} />
           <Route path="inventory/stock-count" element={<StockCountPage />} />
           <Route path="inventory/history" element={<HistoryPage />} />
+          <Route path="inventory/replenishments" element={<ReplenishmentsPage />} />
+          <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="vouchers/new" element={<VoucherFormPage />} />
           <Route path="vouchers/:id/edit" element={<VoucherFormPage />} />
@@ -222,6 +226,7 @@ export default function App() {
           <Route path="transfers/:id" element={<TransferDetailPage />} />
           <Route path="stock-count" element={<StockCountPage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="replenishments" element={<ReplenishmentsPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports" element={<WarehouseReportsPage />} />
         </Route>
