@@ -6,7 +6,7 @@ import {
   Info, ExternalLink, FileSpreadsheet, Barcode, Minus, 
   AlertCircle, ArrowRight, RefreshCw 
 } from 'lucide-react'
-import { PRODUCT_MOCK_LIST } from '@/data/productMockData'
+import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
 import { SUPPLIER_MOCK_LIST } from '@/data/supplierMockData'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { formatPrice } from '@/utils/format'
@@ -35,6 +35,15 @@ export default function CreateStockReceiptPage() {
   
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [isExcelImporting, setIsExcelImporting] = useState(false)
+
+  // Quick Create SKU states
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
+  const [qcName, setQcName] = useState('')
+  const [qcCategory, setQcCategory] = useState('')
+  const [qcBrand, setQcBrand] = useState('')
+  const [qcSkuCode, setQcSkuCode] = useState('')
+  const [qcVariant, setQcVariant] = useState('')
+  const [qcPrice, setQcPrice] = useState(100000)
 
   // Load all SKU options from Master Product List
   const allSKUs = PRODUCT_MOCK_LIST.flatMap(p =>
@@ -190,6 +199,80 @@ export default function CreateStockReceiptPage() {
 
     setToast(`Tạo phiếu nhập kho ${newId} thành công!`)
     setTimeout(() => navigate(`${prefix}/receipts`), 1500)
+  }
+
+  function handleQuickCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!qcName.trim()) { setError('Vui lòng nhập tên sản phẩm'); return }
+    if (!qcCategory) { setError('Vui lòng chọn danh mục'); return }
+    if (!qcSkuCode.trim()) { setError('Vui lòng nhập mã SKU/Mã vạch'); return }
+
+    const skuCodeClean = qcSkuCode.trim().toUpperCase()
+    
+    // Check if SKU already exists
+    if (allSKUs.some(s => s.skuCode.toUpperCase() === skuCodeClean)) {
+      setError(`Mã SKU "${skuCodeClean}" đã tồn tại trong danh mục hệ thống.`);
+      return
+    }
+
+    const newProductId = `P-QC-${Date.now()}`
+    const newSkuId = `SKU-QC-${Date.now()}`
+    const variantLabel = qcVariant.trim() || 'Mặc định'
+
+    const newProduct = {
+      id: newProductId,
+      name: qcName.trim(),
+      category: qcCategory,
+      brand: qcBrand.trim() || 'OEM',
+      description: 'Sản phẩm được tạo nhanh tại màn hình Nhập kho.',
+      status: 'active' as const,
+      attributes: [{ name: 'Biến thể', values: [variantLabel] }],
+      skus: [
+        {
+          id: newSkuId,
+          productId: newProductId,
+          sku: skuCodeClean,
+          attributes: { 'Biến thể': variantLabel },
+          price: qcPrice,
+          stock: 0,
+          image: 'https://placehold.co/100x100/3B82F6/white?text=' + encodeURIComponent(qcName.trim().substring(0, 10)),
+          barcode: skuCodeClean,
+        }
+      ],
+      basePrice: qcPrice,
+      rating: 5.0,
+      reviewCount: 0,
+      images: ['https://placehold.co/400x400/3B82F6/white?text=' + encodeURIComponent(qcName.trim().substring(0, 10))],
+      tags: ['hàng mới', 'thêm nhanh'],
+      createdAt: new Date().toISOString().slice(0, 10),
+    }
+
+    // Save product to database
+    saveProducts([...PRODUCT_MOCK_LIST, newProduct])
+
+    // Insert into items
+    setItems(prev => [
+      ...prev,
+      {
+        skuId: newSkuId,
+        skuCode: skuCodeClean,
+        productName: `${qcName.trim()} (${variantLabel})`,
+        orderedQty: 10,
+        receivedQty: 10,
+        unitCost: Math.round(qcPrice * 0.65)
+      }
+    ])
+
+    // Reset fields
+    setQcName('')
+    setQcCategory('')
+    setQcBrand('')
+    setQcSkuCode('')
+    setQcVariant('')
+    setQcPrice(100000)
+
+    setIsQuickCreateOpen(false)
+    showMiniToast(`Đã thêm nhanh sản phẩm & SKU: ${skuCodeClean} vào phiếu!`)
   }
 
   const uniqueCategories = ['all', ...Array.from(new Set(PRODUCT_MOCK_LIST.map(p => p.category)))]
@@ -370,6 +453,18 @@ export default function CreateStockReceiptPage() {
                 >
                   <Search size={13} />
                   Tìm & Chọn SKU
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsQuickCreateOpen(true)
+                    setError('')
+                  }}
+                  className="px-3.5 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus size={13} />
+                  Thêm nhanh SKU
                 </button>
 
                 <button 
@@ -1016,6 +1111,132 @@ export default function CreateStockReceiptPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Create SKU Modal */}
+      {isQuickCreateOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-gray-100 animate-scaleIn">
+            
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Plus size={16} className="text-indigo-500" />
+                Thêm nhanh Sản phẩm & SKU mới vào Hệ thống
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setIsQuickCreateOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold font-sans"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickCreate}>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Tính năng này giúp bạn đăng ký sản phẩm mới chưa tồn tại trong danh mục hệ thống và đưa trực tiếp vào phiếu nhập kho hiện tại.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="form-label font-bold text-gray-700 text-xs">Tên sản phẩm mới <span className="text-rose-500">*</span></label>
+                    <input 
+                      type="text"
+                      required
+                      className="form-input text-xs" 
+                      placeholder="VD: Hạt cho mèo Keos Vị Hải Sản" 
+                      value={qcName}
+                      onChange={e => setQcName(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label font-bold text-gray-700 text-xs">Danh mục sản phẩm <span className="text-rose-500">*</span></label>
+                    <select 
+                      required
+                      className="form-input text-xs"
+                      value={qcCategory}
+                      onChange={e => setQcCategory(e.target.value)}
+                    >
+                      <option value="">-- Chọn danh mục --</option>
+                      {uniqueCategories.filter(c => c !== 'all').map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label font-bold text-gray-700 text-xs">Thương hiệu</label>
+                    <input 
+                      type="text"
+                      className="form-input text-xs" 
+                      placeholder="VD: Keos" 
+                      value={qcBrand}
+                      onChange={e => setQcBrand(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label font-bold text-gray-700 text-xs">Mã SKU / Barcode mới <span className="text-rose-500">*</span></label>
+                    <input 
+                      type="text"
+                      required
+                      className="form-input text-xs font-mono" 
+                      placeholder="VD: KEOS-CAT-1.5KG" 
+                      value={qcSkuCode}
+                      onChange={e => setQcSkuCode(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label font-bold text-gray-700 text-xs">Phân loại biến thể</label>
+                    <input 
+                      type="text"
+                      className="form-input text-xs" 
+                      placeholder="VD: 1.5kg / Vị Hải Sản" 
+                      value={qcVariant}
+                      onChange={e => setQcVariant(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="form-label font-bold text-gray-700 text-xs">Giá bán lẻ niêm yết (đ) <span className="text-rose-500">*</span></label>
+                    <input 
+                      type="number"
+                      required
+                      min={0}
+                      className="form-input text-xs font-bold" 
+                      value={qcPrice}
+                      onChange={e => setQcPrice(+e.target.value)}
+                    />
+                    <span className="text-[10px] text-gray-400 mt-1 block">
+                      Đơn giá vốn nhập kho sẽ tự động đề xuất 65% giá bán lẻ: <strong>{formatPrice(qcPrice * 0.65)}</strong> (có thể tự chỉnh sửa).
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-100 bg-slate-50 flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsQuickCreateOpen(false)}
+                  className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-xs rounded-xl hover:bg-gray-50 transition-all"
+                >
+                  Hủy bỏ
+                </button>
+                
+                <button 
+                  type="submit"
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <CheckCircle size={13} />
+                  Tạo & Thêm vào phiếu
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
