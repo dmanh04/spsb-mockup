@@ -299,6 +299,8 @@ export type InventoryTxType =
   | 'stock_in' | 'stock_out'
   | 'transfer_in' | 'transfer_out' | 'adjustment'
 
+export type InventoryItemCategory = 'product' | 'consumable'
+
 export interface InventoryItem {
   skuId: string
   skuCode: string
@@ -307,6 +309,8 @@ export interface InventoryItem {
   quantity: number
   minStock: number
   lastUpdated: string
+  category?: InventoryItemCategory
+  unitPrice?: number
 }
 
 export interface InventoryTransaction {
@@ -321,19 +325,110 @@ export interface InventoryTransaction {
   createdBy: string
   createdAt: string
   transferId?: string
+  receiptId?: string
+  issueId?: string
 }
 
-export type TransferStatus = 'pending' | 'approved' | 'shipped' | 'received' | 'rejected'
+export type TransferStatus = 'pending' | 'approved' | 'picking' | 'shipped' | 'in_transit' | 'received' | 'completed' | 'rejected' | 'partially_received'
 
 export interface StockTransfer {
   id: string
   fromShopId: string | 'warehouse'
   toShopId: string | 'warehouse'
-  items: { skuId: string; skuCode: string; productName: string; quantity: number }[]
+  items: { skuId: string; skuCode: string; productName: string; quantity: number; receivedQty?: number }[]
   status: TransferStatus
   requestedBy: string
   requestedAt: string
   approvedBy?: string
+  approvedAt?: string
+  shippedAt?: string
+  receivedAt?: string
+  note: string
+}
+
+// Stock Receipt (Phiếu Nhập Kho - GRN)
+export type StockReceiptStatus = 'draft' | 'pending_approval' | 'approved' | 'completed' | 'cancelled'
+
+export interface StockReceiptItem {
+  skuId: string
+  skuCode: string
+  productName: string
+  orderedQty: number
+  receivedQty: number
+  unitCost: number
+  note?: string
+}
+
+export interface StockReceipt {
+  id: string
+  supplierId: string
+  supplierName: string
+  warehouseId: string
+  poReference?: string
+  items: StockReceiptItem[]
+  totalValue: number
+  status: StockReceiptStatus
+  createdBy: string
+  createdAt: string
+  approvedBy?: string
+  approvedAt?: string
+  note: string
+}
+
+// Stock Issue (Phiếu Xuất Kho - GIN)
+export type StockIssueType = 'sale' | 'service_consumable' | 'return_supplier' | 'damaged' | 'transfer'
+export type StockIssueStatus = 'draft' | 'pending_approval' | 'approved' | 'completed' | 'cancelled'
+
+export interface StockIssueItem {
+  skuId: string
+  skuCode: string
+  productName: string
+  quantity: number
+  unitCost: number
+}
+
+export interface StockIssue {
+  id: string
+  type: StockIssueType
+  warehouseId: string
+  targetShopId?: string
+  orderId?: string
+  bookingId?: string
+  items: StockIssueItem[]
+  totalValue: number
+  status: StockIssueStatus
+  reason: string
+  createdBy: string
+  createdAt: string
+  approvedBy?: string
+  approvedAt?: string
+  note: string
+}
+
+// Stock Count (Kiểm Kê Kho)
+export type StockCountStatus = 'planned' | 'in_progress' | 'pending_review' | 'approved' | 'adjusted'
+
+export interface StockCountItem {
+  skuId: string
+  skuCode: string
+  productName: string
+  systemQty: number
+  actualQty: number
+  variance: number
+  note?: string
+}
+
+export interface StockCount {
+  id: string
+  warehouseId: string
+  warehouseName: string
+  items: StockCountItem[]
+  status: StockCountStatus
+  createdBy: string
+  createdAt: string
+  countDate: string
+  approvedBy?: string
+  approvedAt?: string
   note: string
 }
 

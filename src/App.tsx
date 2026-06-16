@@ -84,8 +84,12 @@ import SystemSettingsPage from './pages/admin/SettingsPage'
 import WarehouseDashboardPage from './pages/warehouse/DashboardPage'
 import StockInPage from './pages/warehouse/StockInPage'
 import StockOutPage from './pages/warehouse/StockOutPage'
+import StockReceiptListPage from './pages/warehouse/StockReceiptListPage'
+import StockIssueListPage from './pages/warehouse/StockIssueListPage'
 import TransfersPage from './pages/warehouse/TransfersPage'
 import TransferDetailPage from './pages/warehouse/TransferDetailPage'
+import CreateTransferPage from './pages/warehouse/CreateTransferPage'
+import StockCountPage from './pages/warehouse/StockCountPage'
 import HistoryPage from './pages/warehouse/HistoryPage'
 import SuppliersPage from './pages/warehouse/SuppliersPage'
 import WarehouseReportsPage from './pages/warehouse/WarehouseReportsPage'
@@ -183,6 +187,15 @@ export default function App() {
           <Route path="bookings/:id/edit" element={<BookingFormPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
           <Route path="inventory/adjust" element={<InventoryAdjustmentPage />} />
+          <Route path="inventory/receipts" element={<StockReceiptListPage />} />
+          <Route path="inventory/receipts/new" element={<StockInPage />} />
+          <Route path="inventory/issues" element={<StockIssueListPage />} />
+          <Route path="inventory/issues/new" element={<StockOutPage />} />
+          <Route path="inventory/transfers" element={<TransfersPage />} />
+          <Route path="inventory/transfers/new" element={<CreateTransferPage />} />
+          <Route path="inventory/transfers/:id" element={<TransferDetailPage />} />
+          <Route path="inventory/stock-count" element={<StockCountPage />} />
+          <Route path="inventory/history" element={<HistoryPage />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="vouchers/new" element={<VoucherFormPage />} />
           <Route path="vouchers/:id/edit" element={<VoucherFormPage />} />
@@ -200,8 +213,14 @@ export default function App() {
           <Route index element={<WarehouseDashboardPage />} />
           <Route path="stock-in" element={<StockInPage />} />
           <Route path="stock-out" element={<StockOutPage />} />
+          <Route path="receipts" element={<StockReceiptListPage />} />
+          <Route path="receipts/new" element={<StockInPage />} />
+          <Route path="issues" element={<StockIssueListPage />} />
+          <Route path="issues/new" element={<StockOutPage />} />
           <Route path="transfers" element={<TransfersPage />} />
+          <Route path="transfers/new" element={<CreateTransferPage />} />
           <Route path="transfers/:id" element={<TransferDetailPage />} />
+          <Route path="stock-count" element={<StockCountPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports" element={<WarehouseReportsPage />} />
