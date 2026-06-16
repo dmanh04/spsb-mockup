@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ClipboardCheck, CheckCircle, AlertTriangle, Plus, Search } from 'lucide-react'
-import { INVENTORY_ITEMS } from '@/data/inventoryMockData'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import type { StockCountStatus } from '@/types'
 
@@ -21,6 +21,7 @@ const STATUS_MAP: Record<StockCountStatus, { label: string; badge: string }> = {
   pending_review: { label: 'Chờ duyệt', badge: 'badge-orange' },
   approved: { label: 'Đã duyệt', badge: 'badge-green' },
   adjusted: { label: 'Đã điều chỉnh', badge: 'badge-green' },
+  rejected: { label: 'Đã từ chối', badge: 'badge-red' },
 }
 
 const SHOPS = [
@@ -28,7 +29,6 @@ const SHOPS = [
   ...SHOP_MOCK_LIST.map(s => ({ id: s.id, name: s.name })),
 ]
 
-// Initial mock sessions
 const INITIAL_SESSIONS: CountSession[] = [
   {
     id: 'SC-001', warehouseId: 'warehouse', warehouseName: 'Kho Trung Tâm',
@@ -51,8 +51,20 @@ const INITIAL_SESSIONS: CountSession[] = [
   },
 ]
 
+const LOCAL_STORAGE_KEY_SESSIONS = 'spsb_stock_count_sessions'
+
+const getStoredSessions = (): CountSession[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY_SESSIONS)
+    if (data) {
+      try { return JSON.parse(data) } catch (e) { console.error(e) }
+    }
+  }
+  return INITIAL_SESSIONS
+}
+
 export default function StockCountPage() {
-  const [sessions, setSessions] = useState<CountSession[]>(INITIAL_SESSIONS)
+  const [sessions, setSessions] = useState<CountSession[]>(getStoredSessions)
   const [mode, setMode] = useState<'list' | 'create' | 'counting'>('list')
   const [selectedSession, setSelectedSession] = useState<CountSession | null>(null)
 
@@ -97,11 +109,85 @@ export default function StockCountPage() {
       countDate: today.toISOString().slice(0, 10),
       note: newNote,
     }
-    setSessions([newSession, ...sessions])
+    const nextSessions = [newSession, ...sessions]
+    setSessions(nextSessions)
+    localStorage.setItem(LOCAL_STORAGE_KEY_SESSIONS, JSON.stringify(nextSessions))
     setToast(`Phiên kiểm kê ${newSession.id} đã gửi chờ duyệt!`)
     setMode('list')
     setCountItems([])
     setNewNote('')
+    setTimeout(() => setToast(''), 3000)
+  }
+
+  function approveSession(sessionId: string) {
+    const nextSessions = sessions.map(s => {
+      if (s.id !== sessionId) return s
+      return { ...s, status: 'adjusted' as const }
+    })
+    setSessions(nextSessions)
+    localStorage.setItem(LOCAL_STORAGE_KEY_SESSIONS, JSON.stringify(nextSessions))
+
+    const session = sessions.find(s => s.id === sessionId)
+    if (!session) return
+
+    const updatedInventory = [...INVENTORY_ITEMS]
+    const updatedTx = [...INVENTORY_TRANSACTIONS]
+    const todayStr = new Date().toISOString().replace('T', ' ').slice(0, 16)
+
+    session.items.forEach(item => {
+      if (item.variance !== 0) {
+        const invItemIdx = updatedInventory.findIndex(
+          i => i.skuId === item.skuId && i.shopId === session.warehouseId
+        )
+
+        if (invItemIdx > -1) {
+          updatedInventory[invItemIdx] = {
+            ...updatedInventory[invItemIdx],
+            quantity: Math.max(0, updatedInventory[invItemIdx].quantity + item.variance),
+            lastUpdated: todayStr.split(' ')[0]
+          }
+        } else {
+          updatedInventory.push({
+            skuId: item.skuId,
+            skuCode: item.skuCode,
+            productName: item.productName,
+            shopId: session.warehouseId,
+            quantity: Math.max(0, item.actualQty),
+            minStock: 5,
+            lastUpdated: todayStr.split(' ')[0]
+          })
+        }
+
+        updatedTx.unshift({
+          id: `TX-ADJ${Math.floor(1000 + Math.random() * 9000)}`,
+          type: 'adjustment',
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          shopId: session.warehouseId,
+          quantity: item.variance,
+          note: `Cân đối tự động từ phiếu kiểm kê ${session.id}`,
+          createdBy: 'Bùi Văn Khánh',
+          createdAt: todayStr
+        })
+      }
+    })
+
+    saveInventory(updatedInventory, updatedTx)
+    setToast(`Đã duyệt và điều chỉnh tồn kho tự động cho phiếu ${sessionId}!`)
+    setSelectedSession(prev => prev && prev.id === sessionId ? { ...prev, status: 'adjusted' } : prev)
+    setTimeout(() => setToast(''), 3000)
+  }
+
+  function rejectSession(sessionId: string) {
+    const nextSessions = sessions.map(s => {
+      if (s.id !== sessionId) return s
+      return { ...s, status: 'rejected' as const }
+    })
+    setSessions(nextSessions)
+    localStorage.setItem(LOCAL_STORAGE_KEY_SESSIONS, JSON.stringify(nextSessions))
+    setToast(`Đã từ chối phiếu kiểm kê ${sessionId}!`)
+    setSelectedSession(prev => prev && prev.id === sessionId ? { ...prev, status: 'rejected' } : prev)
     setTimeout(() => setToast(''), 3000)
   }
 
@@ -189,6 +275,22 @@ export default function StockCountPage() {
                         ))}
                       </tbody>
                     </table>
+                    {s.status === 'pending_review' && (
+                      <div className="mt-4 flex gap-3 border-t border-gray-100 pt-3 justify-end" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => rejectSession(s.id)}
+                          className="px-3.5 py-2 border border-red-200 text-red-600 bg-white hover:bg-red-50 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Từ chối kết quả
+                        </button>
+                        <button
+                          onClick={() => approveSession(s.id)}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                        >
+                          Phê duyệt & Cân đối kho
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

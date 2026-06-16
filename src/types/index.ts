@@ -410,7 +410,7 @@ export interface StockIssue {
 }
 
 // Stock Count (Kiểm Kê Kho)
-export type StockCountStatus = 'planned' | 'in_progress' | 'pending_review' | 'approved' | 'adjusted'
+export type StockCountStatus = 'planned' | 'in_progress' | 'pending_review' | 'approved' | 'adjusted' | 'rejected'
 
 export interface StockCountItem {
   skuId: string

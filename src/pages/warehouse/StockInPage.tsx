@@ -7,10 +7,18 @@ import {
   AlertCircle, ArrowRight, RefreshCw 
 } from 'lucide-react'
 import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
-import { SUPPLIER_MOCK_LIST } from '@/data/supplierMockData'
+import { SUPPLIER_MOCK_LIST, PURCHASE_ORDER_LIST, savePurchaseOrders } from '@/data/supplierMockData'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { formatPrice } from '@/utils/format'
 import type { StockReceiptItem, StockReceiptStatus } from '@/types'
+
+const ADJUSTMENT_REASONS = [
+  'Kiểm kê định kỳ phát hiện thừa',
+  'Nhà cung cấp giao dư hàng',
+  'Tìm thấy sản phẩm thất lạc trong kho',
+  'Thu hồi hàng trưng bày/hàng mẫu về kho',
+  'Khách trả lại hàng khuyến mãi/quà tặng',
+]
 
 export default function CreateStockReceiptPage() {
   const navigate = useNavigate()
@@ -185,6 +193,39 @@ export default function CreateStockReceiptPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
+  function handleSelectPO(poId: string) {
+    setPoReference(poId)
+    if (!poId) return
+
+    const po = PURCHASE_ORDER_LIST.find(p => p.id === poId)
+    if (!po) return
+
+    setSupplierId(po.supplierId)
+
+    const today = new Date()
+    const expiry = new Date()
+    expiry.setFullYear(today.getFullYear() + 2) // 2 years expiry
+    const expiryStr = expiry.toISOString().slice(0, 10)
+
+    const poItemsMapped = po.items.map((pi, idx) => {
+      const suffix = String(idx + 1).padStart(2, '0')
+      const batchNo = `LOT-${today.toISOString().slice(2, 10).replace(/-/g, '')}-${suffix}`
+      return {
+        skuId: pi.skuId,
+        skuCode: pi.skuCode,
+        productName: pi.productName,
+        orderedQty: pi.qty,
+        receivedQty: pi.qty,
+        unitCost: pi.unitPrice,
+        batchNumber: batchNo,
+        expiryDate: expiryStr
+      }
+    })
+
+    setItems(poItemsMapped)
+    showMiniToast(`Đã nạp PO ${poId} với ${poItemsMapped.length} mặt hàng!`)
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -231,6 +272,17 @@ export default function CreateStockReceiptPage() {
 
     const next = [receipt, ...STOCK_RECEIPTS]
     saveStockReceipts(next)
+
+    // Mark PO as received if applicable
+    if (inboundType === 'supplier' && poReference) {
+      const nextPOs = PURCHASE_ORDER_LIST.map(po => {
+        if (po.id === poReference) {
+          return { ...po, status: 'received' as const }
+        }
+        return po
+      })
+      savePurchaseOrders(nextPOs)
+    }
 
     setToast(`Tạo phiếu nhập kho ${newId} thành công!`)
     setTimeout(() => navigate(`${prefix}/receipts`), 1500)
@@ -440,8 +492,12 @@ export default function CreateStockReceiptPage() {
                     const type = e.target.value as any
                     setInboundType(type)
                     setSupplierId('')
-                    setPoReference('')
                     setReferenceId('')
+                    if (type === 'adjustment') {
+                      setPoReference(ADJUSTMENT_REASONS[0])
+                    } else {
+                      setPoReference('')
+                    }
                     
                     // Reset or suggest cost based on type
                     if (type === 'sample') {
@@ -481,13 +537,19 @@ export default function CreateStockReceiptPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label font-bold text-gray-700 text-xs">Số PO tham chiếu (Đơn mua hàng)</label>
-                    <input 
-                      className="form-input text-xs placeholder-gray-400 font-mono" 
-                      placeholder="VD: PO-20260601" 
+                    <label className="form-label font-bold text-gray-700 text-xs">Đơn mua hàng PO liên kết</label>
+                    <select 
+                      className="form-input text-xs font-mono font-bold" 
                       value={poReference} 
-                      onChange={e => setPoReference(e.target.value)} 
-                    />
+                      onChange={e => handleSelectPO(e.target.value)} 
+                    >
+                      <option value="">-- Nhập hàng tự do (Không theo PO) --</option>
+                      {PURCHASE_ORDER_LIST.filter(po => po.status === 'confirmed').map(po => (
+                        <option key={po.id} value={po.id}>
+                          {po.id} ({po.supplierName.replace('Công ty TNHH ', '')})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </>
               )}
@@ -587,12 +649,32 @@ export default function CreateStockReceiptPage() {
                   </div>
                   <div>
                     <label className="form-label font-bold text-gray-700 text-xs">Lý do kiểm thừa <span className="text-rose-500">*</span></label>
-                    <input 
-                      className="form-input text-xs placeholder-gray-400" 
-                      placeholder="VD: Phát hiện thừa 2 bao Royal Canin sau kệ trưng bày" 
-                      value={poReference} 
-                      onChange={e => setPoReference(e.target.value)} 
-                    />
+                    <select 
+                      className="form-input text-xs mb-2" 
+                      value={ADJUSTMENT_REASONS.includes(poReference) ? poReference : (poReference ? 'khác' : ADJUSTMENT_REASONS[0])}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val === 'khác') {
+                          setPoReference('')
+                        } else {
+                          setPoReference(val)
+                        }
+                      }}
+                    >
+                      {ADJUSTMENT_REASONS.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                      <option value="khác">Khác (Tự nhập lý do...)</option>
+                    </select>
+                    
+                    {(!ADJUSTMENT_REASONS.includes(poReference) || poReference === '') && (
+                      <input 
+                        className="form-input text-xs placeholder-gray-400 animate-fadeIn" 
+                        placeholder="Nhập lý do kiểm thừa chi tiết..." 
+                        value={poReference} 
+                        onChange={e => setPoReference(e.target.value)} 
+                      />
+                    )}
                   </div>
                 </>
               )}

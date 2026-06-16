@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Plus, Check, X, Truck, ArrowRight, Search, Eye, CheckCircle, XCircle, FileText, AlertTriangle } from 'lucide-react'
 import { TRANSFER_MOCK_LIST, saveTransfers } from '@/data/transferMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import type { StockTransfer, TransferStatus } from '@/types'
 
 const STATUS_LABELS: Record<TransferStatus, string> = {
@@ -49,6 +50,9 @@ export default function TransfersPage() {
   const selected = selectedId ? transfers.find(t => t.id === selectedId) : null
 
   function updateStatus(id: string, newStatus: TransferStatus) {
+    const transfer = transfers.find(t => t.id === id)
+    if (!transfer) return
+
     const next = transfers.map(t => {
       if (t.id !== id) return t
       const updated: StockTransfer = { ...t, status: newStatus }
@@ -59,6 +63,81 @@ export default function TransfersPage() {
     })
     setTransfers(next)
     saveTransfers(next)
+
+    // Stock adjustments on shipment and receipt
+    const updatedInventory = [...INVENTORY_ITEMS]
+    const updatedTx = [...INVENTORY_TRANSACTIONS]
+    const todayStr = new Date().toISOString().replace('T', ' ').slice(0, 16)
+
+    if (newStatus === 'shipped') {
+      // Deduct items from the sender (fromShopId)
+      transfer.items.forEach(item => {
+        const invItemIdx = updatedInventory.findIndex(
+          i => i.skuId === item.skuId && i.shopId === transfer.fromShopId
+        )
+        if (invItemIdx > -1) {
+          updatedInventory[invItemIdx] = {
+            ...updatedInventory[invItemIdx],
+            quantity: Math.max(0, updatedInventory[invItemIdx].quantity - item.quantity),
+            lastUpdated: todayStr.split(' ')[0]
+          }
+        }
+        // Log transaction for sender
+        updatedTx.unshift({
+          id: `TX-OUT${Math.floor(1000 + Math.random() * 9000)}`,
+          type: 'transfer_out',
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          shopId: transfer.fromShopId,
+          quantity: -item.quantity,
+          note: `Xuất chuyển kho đến ${shopName(transfer.toShopId)} (Phiếu: ${transfer.id})`,
+          createdBy: 'Bùi Văn Khánh',
+          createdAt: todayStr,
+          transferId: transfer.id
+        })
+      })
+      saveInventory(updatedInventory, updatedTx)
+    } else if (newStatus === 'received') {
+      // Add items to the receiver (toShopId)
+      transfer.items.forEach(item => {
+        const invItemIdx = updatedInventory.findIndex(
+          i => i.skuId === item.skuId && i.shopId === transfer.toShopId
+        )
+        if (invItemIdx > -1) {
+          updatedInventory[invItemIdx] = {
+            ...updatedInventory[invItemIdx],
+            quantity: updatedInventory[invItemIdx].quantity + item.quantity,
+            lastUpdated: todayStr.split(' ')[0]
+          }
+        } else {
+          updatedInventory.push({
+            skuId: item.skuId,
+            skuCode: item.skuCode,
+            productName: item.productName,
+            shopId: transfer.toShopId,
+            quantity: item.quantity,
+            minStock: 5,
+            lastUpdated: todayStr.split(' ')[0]
+          })
+        }
+        // Log transaction for receiver
+        updatedTx.unshift({
+          id: `TX-IN${Math.floor(1000 + Math.random() * 9000)}`,
+          type: 'transfer_in',
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          shopId: transfer.toShopId,
+          quantity: item.quantity,
+          note: `Nhận hàng chuyển từ ${shopName(transfer.fromShopId)} (Phiếu: ${transfer.id})`,
+          createdBy: 'Bùi Văn Khánh',
+          createdAt: todayStr,
+          transferId: transfer.id
+        })
+      })
+      saveInventory(updatedInventory, updatedTx)
+    }
   }
 
   return (
