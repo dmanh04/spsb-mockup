@@ -221,6 +221,9 @@ export default function App() {
           <Route index element={<WarehouseDashboardPage />} />
           <Route path="stock-in" element={<StockInPage />} />
           <Route path="stock-out" element={<StockOutPage />} />
+          <Route path="products" element={<AdminProductManagementPage />} />
+          <Route path="products/:id/edit" element={<AdminProductFormPage />} />
+          <Route path="cages" element={<CageManagementPage />} />
           <Route path="receipts" element={<StockReceiptListPage />} />
           <Route path="receipts/new" element={<StockInPage />} />
           <Route path="issues" element={<StockIssueListPage />} />

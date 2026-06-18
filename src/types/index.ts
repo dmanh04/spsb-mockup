@@ -357,8 +357,12 @@ export interface Cage {
   price: number
   stock: number
   image: string
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'maintenance'
   description?: string
+  dimensions?: string
+  maxWeight?: number
+  warranty?: number
+  location?: string
   createdAt: string
 }
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuthContext } from '@/auth/AuthContext'
 import {
   Search, Plus, Edit, Eye, EyeOff, Trash2, Package, Layers, AlertTriangle, AlertCircle, ShoppingBag, CheckCircle
 } from 'lucide-react'
@@ -9,6 +10,9 @@ import type { Product } from '@/types'
 
 export default function AdminProductManagementPage() {
   const navigate = useNavigate()
+  const { currentUser } = useAuthContext()
+  const isWarehouseManager = currentUser?.role === 'warehouse_manager'
+  const routePrefix = isWarehouseManager ? '/warehouse' : '/admin'
   
   // Local state to trigger re-renders after mutations
   const [productList, setProductList] = useState<Product[]>(PRODUCT_MOCK_LIST)
@@ -108,12 +112,14 @@ export default function AdminProductManagementPage() {
             Xem danh sách sản phẩm, quản lý mã SKU biến thể, cấu hình tồn kho và thiết lập giá bán.
           </p>
         </div>
-        <button
-          onClick={() => navigate('/admin/products/new')}
-          className="btn-primary py-2.5 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 bg-red-800 hover:bg-red-900 border-none transition-all shadow-md self-start sm:self-auto cursor-pointer"
-        >
-          <Plus size={16} /> Thêm sản phẩm mới
-        </button>
+        {!isWarehouseManager && (
+          <button
+            onClick={() => navigate(`${routePrefix}/products/new`)}
+            className="btn-primary py-2.5 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 bg-red-800 hover:bg-red-900 border-none transition-all shadow-md self-start sm:self-auto cursor-pointer"
+          >
+            <Plus size={16} /> Thêm sản phẩm mới
+          </button>
+        )}
       </div>
 
       {/* Statistics Widgets */}
@@ -296,7 +302,7 @@ export default function AdminProductManagementPage() {
                   </button>
 
                   <button
-                    onClick={() => navigate(`/admin/products/${p.id}/edit`)}
+                    onClick={() => navigate(`${routePrefix}/products/${p.id}/edit`)}
                     title="Chỉnh sửa sản phẩm"
                     className="p-2 text-gray-400 hover:text-red-800 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200 cursor-pointer"
                   >

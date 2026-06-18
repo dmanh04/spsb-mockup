@@ -4,7 +4,7 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, AlertTriangle, 
   Sparkles, Package, Search, Upload, Download, HelpCircle, 
   Info, ExternalLink, FileSpreadsheet, Barcode, Minus, 
-  AlertCircle, ArrowRight, RefreshCw, Grid3X3 
+  AlertCircle, ArrowRight, RefreshCw, Grid3X3, Edit 
 } from 'lucide-react'
 import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
 import { CAGE_MOCK_LIST } from '@/data/cageMockData'
@@ -36,6 +36,9 @@ export default function CreateStockReceiptPage() {
   const [saveAs, setSaveAs] = useState<'draft' | 'pending_approval'>('pending_approval')
   const [toast, setToast] = useState('')
   const [error, setError] = useState('')
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
+  const [tempQty, setTempQty] = useState(1)
+  const [qtyChangeReason, setQtyChangeReason] = useState('')
 
   // Simulated features states
   const [barcodeQuery, setBarcodeQuery] = useState('')
@@ -877,19 +880,26 @@ export default function CreateStockReceiptPage() {
 
                           {/* Quantity (orderedQty) */}
                           <td className="py-4 align-top">
-                            <div className="pt-0.5">
-                              <input 
-                                type="number" 
-                                min={1} 
-                                className="form-input text-xs py-1 px-2 w-20 text-center border-gray-300 font-medium" 
-                                value={item.orderedQty}
-                                onChange={e => {
-                                  const val = +e.target.value
-                                  updateItem(idx, 'orderedQty', val)
-                                  updateItem(idx, 'receivedQty', val)
-                                }} 
-                              />
+                            <div className="pt-1.5 flex items-center gap-1.5">
+                              <span className="font-bold text-gray-800 text-sm">{item.orderedQty}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingItemIndex(idx)
+                                  setTempQty(item.orderedQty)
+                                  setQtyChangeReason(item.note || '')
+                                }}
+                                className="p-1 text-primary-600 hover:bg-primary-50 rounded border border-transparent hover:border-primary-200 transition-all cursor-pointer"
+                                title="Sửa số lượng"
+                              >
+                                <Edit size={12} />
+                              </button>
                             </div>
+                            {item.note && (
+                              <div className="text-[10px] text-amber-600 font-medium mt-1 leading-tight">
+                                Lý do: {item.note}
+                              </div>
+                            )}
                           </td>
 
                           {/* Delete Action */}
@@ -1482,6 +1492,91 @@ export default function CreateStockReceiptPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Qty edit reason modal */}
+      {editingItemIndex !== null && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-scaleUp">
+            <h3 className="text-base font-extrabold text-slate-900 border-b pb-2 flex items-center justify-between">
+              <span>✏️ Chỉnh sửa số lượng</span>
+              <button 
+                type="button" 
+                onClick={() => setEditingItemIndex(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </h3>
+            
+            <div className="text-xs space-y-3 font-semibold">
+              <div>
+                <span className="text-gray-400 block mb-0.5">Mặt hàng</span>
+                <span className="text-gray-800 font-bold text-sm">{items[editingItemIndex]?.productName}</span>
+                <span className="block text-[10px] text-gray-400 font-mono mt-0.5">{items[editingItemIndex]?.skuCode}</span>
+              </div>
+              
+              <div>
+                <span className="text-gray-400 block mb-1">Số lượng hiện tại</span>
+                <span className="text-gray-800 font-bold text-sm bg-gray-50 border px-3 py-1 rounded-lg">{items[editingItemIndex]?.orderedQty}</span>
+              </div>
+
+              <div>
+                <label className="text-gray-700 block mb-1">Số lượng mới <span className="text-rose-500">*</span></label>
+                <input 
+                  type="number"
+                  min={1}
+                  className="form-input text-xs font-bold"
+                  value={tempQty}
+                  onChange={e => setTempQty(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+              </div>
+
+              {tempQty !== items[editingItemIndex]?.orderedQty && (
+                <div className="space-y-1 animate-fadeIn">
+                  <label className="text-gray-700 block">Lý do thay đổi số lượng <span className="text-rose-500">*</span></label>
+                  <textarea 
+                    rows={3}
+                    className="form-input text-xs font-medium resize-none"
+                    placeholder="VD: Cập nhật theo đơn yêu cầu bổ sung mới nhất, đổi sang size nhỏ hơn..."
+                    value={qtyChangeReason}
+                    onChange={e => setQtyChangeReason(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-400 italic">Bắt buộc nhập lý do khi thay đổi số lượng đặt ban đầu.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t">
+              <button 
+                type="button" 
+                onClick={() => setEditingItemIndex(null)}
+                className="btn-secondary text-xs px-4 py-2"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                type="button" 
+                disabled={tempQty !== items[editingItemIndex]?.orderedQty && !qtyChangeReason.trim()}
+                onClick={() => {
+                  const originalQty = items[editingItemIndex].orderedQty
+                  updateItem(editingItemIndex, 'orderedQty', tempQty)
+                  updateItem(editingItemIndex, 'receivedQty', tempQty)
+                  if (tempQty !== originalQty) {
+                    updateItem(editingItemIndex, 'note', qtyChangeReason.trim())
+                  } else {
+                    updateItem(editingItemIndex, 'note', '')
+                  }
+                  setEditingItemIndex(null)
+                  showMiniToast("Đã cập nhật số lượng mặt hàng")
+                }}
+                className="btn-primary text-xs px-5 py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Xác nhận
+              </button>
+            </div>
           </div>
         </div>
       )}

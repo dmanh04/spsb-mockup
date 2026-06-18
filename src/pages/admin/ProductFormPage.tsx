@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuthContext } from '@/auth/AuthContext'
 import {
   ChevronLeft, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, Info, Image as ImageIcon, Tags, Star
 } from 'lucide-react'
@@ -16,6 +17,9 @@ interface TempAttribute {
 export default function AdminProductFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const { currentUser } = useAuthContext()
+  const isWarehouseManager = currentUser?.role === 'warehouse_manager'
+  const routePrefix = isWarehouseManager ? '/warehouse' : '/admin'
   const isEditMode = !!id
 
   // 1. Basic Product Info State
@@ -384,7 +388,7 @@ export default function AdminProductFormPage() {
     setToastMsg(isEditMode ? 'Cập nhật sản phẩm thành công!' : 'Tạo sản phẩm thành công!')
     setTimeout(() => {
       setToastMsg('')
-      navigate('/admin/products')
+      navigate(`${routePrefix}/products`)
     }, 1500)
   }
 
@@ -414,7 +418,7 @@ export default function AdminProductFormPage() {
       {/* Header bar */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate('/admin/products')}
+          onClick={() => navigate(`${routePrefix}/products`)}
           className="p-2 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
         >
           <ChevronLeft size={16} className="text-gray-600" />
@@ -916,7 +920,7 @@ export default function AdminProductFormPage() {
             
             <button
               type="button"
-              onClick={() => navigate('/admin/products')}
+              onClick={() => navigate(`${routePrefix}/products`)}
               className="w-full py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-lg font-bold text-xs transition-colors cursor-pointer"
             >
               Hủy bỏ & Trở lại

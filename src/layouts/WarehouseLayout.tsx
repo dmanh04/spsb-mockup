@@ -1,10 +1,12 @@
-import { LayoutDashboard, PackagePlus, PackageMinus, ArrowLeftRight, History, Truck, BarChart3, ClipboardCheck } from 'lucide-react'
+import { LayoutDashboard, PackagePlus, PackageMinus, ArrowLeftRight, History, Truck, BarChart3, ClipboardCheck, ShoppingBag, Grid3X3 } from 'lucide-react'
 import BaseLayout, { type NavItem } from './_BaseLayout'
 
 const NAV: NavItem[] = [
   { to: '/warehouse', label: 'Dashboard kho', icon: LayoutDashboard },
   { to: '/warehouse/stock-in', label: 'Nhập kho', icon: PackagePlus },
   { to: '/warehouse/stock-out', label: 'Xuất kho', icon: PackageMinus },
+  { to: '/warehouse/products', label: 'Sản phẩm', icon: ShoppingBag },
+  { to: '/warehouse/cages', label: 'Quản lý Chuồng', icon: Grid3X3 },
   { to: '/warehouse/transfers', label: 'Phiếu chuyển kho', icon: ArrowLeftRight, badge: 2 },
   { to: '/warehouse/history', label: 'Lịch sử kho', icon: History },
   { to: '/warehouse/replenishments', label: 'Đơn mua hàng PO', icon: ClipboardCheck },
