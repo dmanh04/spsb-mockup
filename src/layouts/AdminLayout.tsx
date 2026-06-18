@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Users, Shield, Store, ShoppingBag, Layers,
-  Scissors, CalendarCheck, Warehouse, Tag, BarChart3, Bot, Settings, Truck
+  Scissors, CalendarCheck, Warehouse, Tag, BarChart3, Bot, Settings, Truck,
+  Grid3X3, ClipboardCheck
 } from 'lucide-react'
 import BaseLayout, { type NavItem } from './_BaseLayout'
 
@@ -11,9 +12,11 @@ const NAV: NavItem[] = [
   { to: '/admin/shops', label: 'Chi nhánh', icon: Store },
   { to: '/admin/products', label: 'Sản phẩm', icon: ShoppingBag },
   { to: '/admin/product-categories', label: 'Danh mục SP', icon: Layers },
+  { to: '/admin/cages', label: 'Quản lý Chuồng', icon: Grid3X3 },
   { to: '/admin/services', label: 'Dịch vụ', icon: Scissors },
   { to: '/admin/bookings', label: 'Booking', icon: CalendarCheck },
   { to: '/admin/inventory', label: 'Tồn kho', icon: Warehouse },
+  { to: '/admin/stock-in-approval', label: 'Duyệt Nhập Kho', icon: ClipboardCheck },
   { to: '/admin/suppliers', label: 'Nhà cung cấp', icon: Truck },
   { to: '/admin/vouchers', label: 'Voucher & KM', icon: Tag },
   { to: '/admin/reports', label: 'Báo cáo', icon: BarChart3 },
