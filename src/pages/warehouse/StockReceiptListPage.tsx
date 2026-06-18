@@ -9,6 +9,7 @@ import type { StockReceipt, StockReceiptItem, StockReceiptStatus } from '@/types
 const STATUS_MAP: Record<StockReceiptStatus, { label: string; badge: string }> = {
   draft: { label: 'Nháp', badge: 'badge-gray' },
   pending_approval: { label: 'Chờ duyệt', badge: 'badge-orange' },
+  price_negotiating: { label: 'Thương lượng giá', badge: 'badge-purple' },
   approved: { label: 'Đã duyệt', badge: 'badge-blue' },
   completed: { label: 'Hoàn thành', badge: 'badge-green' },
   cancelled: { label: 'Đã hủy', badge: 'badge-red' },

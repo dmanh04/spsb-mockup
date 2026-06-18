@@ -79,6 +79,8 @@ import PromotionsPage from './pages/admin/PromotionsPage'
 import AIBreedPage from './pages/admin/AIBreedPage'
 import AIChatbotPage from './pages/admin/AIChatbotPage'
 import SystemSettingsPage from './pages/admin/SettingsPage'
+import CageManagementPage from './pages/admin/CageManagementPage'
+import StockInApprovalPage from './pages/admin/StockInApprovalPage'
 
 // Warehouse
 import WarehouseDashboardPage from './pages/warehouse/DashboardPage'
@@ -207,6 +209,8 @@ export default function App() {
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="ai/breed" element={<AIBreedPage />} />
           <Route path="ai/chatbot" element={<AIChatbotPage />} />
+          <Route path="cages" element={<CageManagementPage />} />
+          <Route path="stock-in-approval" element={<StockInApprovalPage />} />
           <Route path="settings" element={<SystemSettingsPage />} />
         </Route>
 

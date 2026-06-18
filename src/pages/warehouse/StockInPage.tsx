@@ -4,9 +4,10 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, AlertTriangle, 
   Sparkles, Package, Search, Upload, Download, HelpCircle, 
   Info, ExternalLink, FileSpreadsheet, Barcode, Minus, 
-  AlertCircle, ArrowRight, RefreshCw 
+  AlertCircle, ArrowRight, RefreshCw, Grid3X3 
 } from 'lucide-react'
 import { PRODUCT_MOCK_LIST, saveProducts } from '@/data/productMockData'
+import { CAGE_MOCK_LIST } from '@/data/cageMockData'
 import { SUPPLIER_MOCK_LIST } from '@/data/supplierMockData'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { formatPrice } from '@/utils/format'
@@ -42,6 +43,7 @@ export default function CreateStockReceiptPage() {
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [pickerCategory, setPickerCategory] = useState('all')
+  const [pickerTab, setPickerTab] = useState<'product' | 'cage'>('product')
   
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [isExcelImporting, setIsExcelImporting] = useState(false)
@@ -71,9 +73,25 @@ export default function CreateStockReceiptPage() {
     }))
   )
 
+  // Load all cage options
+  const allCages = CAGE_MOCK_LIST.filter(c => c.status === 'active').map(cage => ({
+    cageId: cage.id,
+    cageCode: cage.code,
+    cageName: cage.name,
+    size: cage.size,
+    material: cage.material,
+    petType: cage.petType,
+    price: cage.price,
+    image: cage.image,
+    currentStock: cage.stock,
+    fullName: `${cage.name} — ${cage.size} / ${cage.material}`,
+  }))
+
   const supplier = SUPPLIER_MOCK_LIST.find(s => s.id === supplierId)
-  const totalValue = items.reduce((s, i) => s + i.receivedQty * i.unitCost, 0)
-  const totalItems = items.reduce((s, i) => s + i.receivedQty, 0)
+  const isWarehouse = !location.pathname.startsWith('/admin')
+  const totalItems = items.reduce((s, i) => s + i.orderedQty, 0)
+  const productCount = items.filter(i => i.itemType === 'product').length
+  const cageCount = items.filter(i => i.itemType === 'cage').length
 
   // Handlers
   function addItem(skuId: string) {
@@ -102,14 +120,42 @@ export default function CreateStockReceiptPage() {
         skuId: sku.skuId, 
         skuCode: sku.skuCode, 
         productName: `${sku.productName} (${sku.variantName})`, 
+        itemType: 'product' as const,
         orderedQty: 10, 
         receivedQty: 10, 
-        unitCost: inboundType === 'sample' ? 0 : Math.round(sku.price * 0.65), // 0 VND for sample inbound
+        unitCost: 0,
         batchNumber: batchNo,
         expiryDate: expiryStr
       }
     ])
     showMiniToast(`Đã thêm: ${sku.productName}`)
+  }
+
+  function addCageItem(cageId: string) {
+    const cage = allCages.find(c => c.cageId === cageId)
+    if (!cage) return
+
+    const existingIdx = items.findIndex(i => i.skuId === cageId && i.itemType === 'cage')
+    if (existingIdx > -1) {
+      updateItem(existingIdx, 'receivedQty', items[existingIdx].receivedQty + 1)
+      updateItem(existingIdx, 'orderedQty', items[existingIdx].orderedQty + 1)
+      showMiniToast(`Đã tăng số lượng chuồng: ${cage.cageCode}`)
+      return
+    }
+
+    setItems(prev => [
+      ...prev,
+      {
+        skuId: cage.cageId,
+        skuCode: cage.cageCode,
+        productName: `${cage.cageName} (${cage.size})`,
+        itemType: 'cage' as const,
+        orderedQty: 1,
+        receivedQty: 1,
+        unitCost: 0,
+      }
+    ])
+    showMiniToast(`Đã thêm chuồng: ${cage.cageName}`)
   }
 
   function updateItem(idx: number, field: string, value: any) {
@@ -171,9 +217,10 @@ export default function CreateStockReceiptPage() {
             skuId: sku.skuId,
             skuCode: sku.skuCode,
             productName: `${sku.productName} (${sku.variantName})`,
+            itemType: 'product' as const,
             orderedQty: sample.qty,
-            receivedQty: sample.qty - (sample.id === 'P002-S2' ? 2 : 0), // Mock 1 item mismatch
-            unitCost: inboundType === 'sample' ? 0 : Math.round(sku.price * sample.costRate),
+            receivedQty: sample.qty - (sample.id === 'P002-S2' ? 2 : 0),
+            unitCost: 0,
             batchNumber: `LOT-EXCEL-0${idx + 1}`,
             expiryDate: expiryStr
           })
@@ -229,9 +276,9 @@ export default function CreateStockReceiptPage() {
       poReference: inboundType === 'adjustment' ? poReference : undefined,
       inboundType,
       referenceId: inboundType !== 'supplier' ? referenceId : undefined,
-      items,
-      totalValue,
-      status: saveAs as StockReceiptStatus,
+      items: items.map(i => ({ ...i, unitCost: 0 })),
+      totalValue: 0,
+      status: (isWarehouse ? 'pending_approval' : saveAs) as StockReceiptStatus,
       createdBy: 'Bùi Văn Khánh',
       createdAt: today.toISOString().replace('T', ' ').slice(0, 16),
       note,
@@ -240,7 +287,7 @@ export default function CreateStockReceiptPage() {
     const next = [receipt, ...STOCK_RECEIPTS]
     saveStockReceipts(next)
 
-    setToast(`Tạo phiếu nhập kho ${newId} thành công!`)
+    setToast(`Gửi yêu cầu nhập kho ${newId} thành công!`)
     setTimeout(() => navigate(`${prefix}/receipts`), 1500)
   }
 
@@ -300,16 +347,16 @@ export default function CreateStockReceiptPage() {
     // Save product to database
     saveProducts([...PRODUCT_MOCK_LIST, newProduct])
 
-    // Insert into items
     setItems(prev => [
       ...prev,
       {
         skuId: newSkuId,
         skuCode: skuCodeClean,
         productName: `${qcName.trim()} (${variantLabel})`,
+        itemType: 'product' as const,
         orderedQty: 10,
         receivedQty: 10,
-        unitCost: inboundType === 'sample' ? 0 : Math.round(qcPrice * 0.65),
+        unitCost: 0,
         batchNumber: batchNo,
         expiryDate: expiryStr
       }
@@ -374,7 +421,7 @@ export default function CreateStockReceiptPage() {
               <ArrowRight size={10} />
               <span className="text-gray-400">Tạo mới</span>
             </div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight mt-0.5">Tạo Phiếu Nhập Kho (GRN)</h1>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight mt-0.5">{isWarehouse ? 'Gửi Yêu Cầu Nhập Kho' : 'Tạo Phiếu Nhập Kho (GRN)'}</h1>
           </div>
         </div>
 
@@ -387,11 +434,16 @@ export default function CreateStockReceiptPage() {
           <span className="text-gray-400 font-bold px-1">/</span>
           <span className="px-3 py-1.5 text-gray-500 font-medium flex items-center gap-1.5">
             <span className="w-5 h-5 bg-gray-200 text-gray-600 font-black rounded-full flex items-center justify-center text-[10px]">2</span>
-            Gửi duyệt
+            Gửi yêu cầu
           </span>
           <span className="text-gray-400 font-bold px-1">/</span>
           <span className="px-3 py-1.5 text-gray-500 font-medium flex items-center gap-1.5">
             <span className="w-5 h-5 bg-gray-200 text-gray-600 font-black rounded-full flex items-center justify-center text-[10px]">3</span>
+            Admin duyệt giá
+          </span>
+          <span className="text-gray-400 font-bold px-1">/</span>
+          <span className="px-3 py-1.5 text-gray-500 font-medium flex items-center gap-1.5">
+            <span className="w-5 h-5 bg-gray-200 text-gray-600 font-black rounded-full flex items-center justify-center text-[10px]">4</span>
             Nhập kho
           </span>
         </div>
@@ -644,7 +696,7 @@ export default function CreateStockReceiptPage() {
               <div>
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                   <span className="p-1 bg-amber-50 rounded-lg text-amber-600">📦</span>
-                  2. Danh sách hàng hóa nhập kho ({items.length} SKU)
+                  2. Danh sách hàng hóa & chuồng nhập kho ({items.length} mục{cageCount > 0 ? ` • ${productCount} SP, ${cageCount} Chuồng` : ''})
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">Thêm mặt hàng và kiểm đếm số lượng thực tế nhận được.</p>
               </div>
@@ -753,27 +805,44 @@ export default function CreateStockReceiptPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-gray-200/80 text-[11px] font-bold">
-                      <th className="table-th text-slate-500 py-3.5 pl-5 w-60">Thông tin SKU / Sản phẩm</th>
+                      <th className="table-th text-slate-500 py-3.5 pl-5 w-16">Loại</th>
+                      <th className="table-th text-slate-500 py-3.5 w-60">Thông tin SKU / Sản phẩm</th>
                       <th className="table-th text-slate-500 py-3.5 w-24">Tồn kho</th>
                       <th className="table-th text-slate-500 py-3.5 w-28">Số lượng đặt</th>
-                      <th className="table-th text-slate-500 py-3.5 w-28">Đơn giá vốn</th>
-                      <th className="table-th text-slate-500 py-3.5 w-28">Thành tiền</th>
                       <th className="table-th py-3.5 pr-5 w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item, idx) => {
-                      const meta = allSKUs.find(s => s.skuId === item.skuId)
-                      const retailPrice = meta?.price || 0
-                      const discountRate = retailPrice > 0 ? Math.round((1 - item.unitCost / retailPrice) * 100) : 0
+                      const meta = item.itemType === 'product' ? allSKUs.find(s => s.skuId === item.skuId) : null
+                      const cageMeta = item.itemType === 'cage' ? allCages.find(c => c.cageId === item.skuId) : null
+                      const itemImage = meta?.image || cageMeta?.image || 'https://placehold.co/100x100/cccccc/white?text=No+Image'
+                      const currentStock = meta?.currentStock || cageMeta?.currentStock || 0
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          {/* Item Meta */}
+                          {/* Item Type Badge */}
                           <td className="py-4 pl-5 align-top">
+                            <div className="pt-1.5">
+                              {item.itemType === 'cage' ? (
+                                <span className="px-2 py-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px] font-bold rounded-lg flex items-center gap-1 w-fit">
+                                  <Grid3X3 size={10} />
+                                  Chuồng
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold rounded-lg flex items-center gap-1 w-fit">
+                                  <Package size={10} />
+                                  Sản phẩm
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Item Meta */}
+                          <td className="py-4 align-top">
                             <div className="flex items-start gap-3">
                               <img 
-                                src={meta?.image} 
+                                src={itemImage} 
                                 alt={item.productName} 
                                 className="w-12 h-12 rounded-xl object-cover border border-gray-200/80 bg-white" 
                               />
@@ -786,7 +855,8 @@ export default function CreateStockReceiptPage() {
                                   {meta?.brand && (
                                     <span className="text-[9px] font-bold text-primary-600 uppercase tracking-wider">{meta.brand}</span>
                                   )}
-                                  <span className="text-[10px] text-gray-400">· {meta?.category}</span>
+                                  {meta?.category && <span className="text-[10px] text-gray-400">· {meta.category}</span>}
+                                  {cageMeta && <span className="text-[10px] text-gray-400">· {cageMeta.size} · {cageMeta.material}</span>}
                                 </div>
                               </div>
                             </div>
@@ -796,11 +866,11 @@ export default function CreateStockReceiptPage() {
                           <td className="py-4 align-top">
                             <div className="pt-1.5">
                               <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                                (meta?.currentStock || 0) <= 5 
+                                currentStock <= 5 
                                   ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                                   : 'bg-slate-100 text-slate-700'
                               }`}>
-                                Tồn: {meta?.currentStock || 0}
+                                Tồn: {currentStock}
                               </span>
                             </div>
                           </td>
@@ -816,47 +886,9 @@ export default function CreateStockReceiptPage() {
                                 onChange={e => {
                                   const val = +e.target.value
                                   updateItem(idx, 'orderedQty', val)
-                                  updateItem(idx, 'receivedQty', 0)
+                                  updateItem(idx, 'receivedQty', val)
                                 }} 
                               />
-                            </div>
-                          </td>
-
-                          {/* Unit Cost & Margin discount helper */}
-                          <td className="py-4 align-top">
-                            <div className="space-y-1">
-                              <input 
-                                type="number" 
-                                min={0} 
-                                className="form-input text-xs py-1 px-2 w-28 border-gray-300 font-bold text-slate-800" 
-                                value={item.unitCost}
-                                onChange={e => updateItem(idx, 'unitCost', +e.target.value)} 
-                              />
-                              <div className="flex items-center justify-between gap-1 pr-2">
-                                <button 
-                                  type="button" 
-                                  onClick={() => updateItem(idx, 'unitCost', Math.round(retailPrice * 0.65))}
-                                  className="text-[9px] font-bold text-primary-600 hover:text-primary-800 hover:underline cursor-pointer"
-                                  title="Đặt giá gốc gợi ý bằng 65% giá bán lẻ"
-                                >
-                                  Đặt 65%
-                                </button>
-                                <span className={`text-[9px] font-bold px-1 py-0.2 rounded-md ${
-                                  discountRate >= 35 ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
-                                }`} title="Tỉ lệ chênh lệch so với giá bán lẻ">
-                                  Lãi: {discountRate}%
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Subtotal */}
-                          <td className="py-4 align-top">
-                            <div className="pt-1 text-xs font-extrabold text-slate-900">
-                              {formatPrice(item.orderedQty * item.unitCost)}
-                            </div>
-                            <div className="text-[9px] text-gray-400 mt-0.5">
-                              Giá bán lẻ: {formatPrice(retailPrice)}
                             </div>
                           </td>
 
@@ -877,16 +909,13 @@ export default function CreateStockReceiptPage() {
                   </tbody>
                   <tfoot className="border-t-2 border-gray-200 bg-slate-50/50">
                     <tr>
-                      <td className="py-4 pl-5 font-bold text-slate-700" colSpan={2}>
+                      <td className="py-4 pl-5 font-bold text-slate-700" colSpan={3}>
                         TỔNG CỘNG HÀNG NHẬP
                       </td>
-                      <td className="py-4 text-xs font-black text-slate-700">
-                        {items.reduce((s, i) => s + i.orderedQty, 0)}
+                      <td className="py-4 text-sm font-black text-primary-600">
+                        {totalItems} sp
                       </td>
                       <td className="py-4"></td>
-                      <td className="py-4 text-sm font-black text-primary-600" colSpan={2}>
-                        {formatPrice(totalValue)}
-                      </td>
                     </tr>
                   </tfoot>
                 </table>
@@ -915,58 +944,71 @@ export default function CreateStockReceiptPage() {
               />
             </div>
 
-            <div className="space-y-2.5">
-              <label className="form-label font-bold text-gray-700 text-xs">Lưu phiếu dưới dạng</label>
-              
-              <div 
-                onClick={() => setSaveAs('pending_approval')}
-                className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
-                  saveAs === 'pending_approval' 
-                    ? 'border-primary-500 bg-primary-50/30' 
-                    : 'border-gray-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <input 
-                  type="radio" 
-                  name="saveAs" 
-                  checked={saveAs === 'pending_approval'} 
-                  onChange={() => {}} // handled by parent click
-                  className="w-4 h-4 text-primary-600 mt-0.5 cursor-pointer" 
-                />
-                <div>
-                  <div className="text-xs font-bold text-gray-800">Tạo & Gửi duyệt ngay</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">Chuyển lên trạng thái "Chờ duyệt". Thủ kho/Admin sẽ duyệt để cộng tồn kho.</div>
+            {isWarehouse ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertCircle size={13} className="text-amber-600" />
+                  Lưu ý về luồng xử lý
                 </div>
+                <p className="text-[10px] text-amber-700 leading-relaxed">
+                  Yêu cầu nhập kho sẽ được gửi cho <strong>Admin</strong> để thương lượng giá với NCC và duyệt.
+                  Bạn <strong>không cần nhập giá</strong> — Admin sẽ xử lý phần này.
+                </p>
               </div>
+            ) : (
+              <div className="space-y-2.5">
+                <label className="form-label font-bold text-gray-700 text-xs">Lưu phiếu dưới dạng</label>
+                
+                <div 
+                  onClick={() => setSaveAs('pending_approval')}
+                  className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
+                    saveAs === 'pending_approval' 
+                      ? 'border-primary-500 bg-primary-50/30' 
+                      : 'border-gray-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="saveAs" 
+                    checked={saveAs === 'pending_approval'} 
+                    onChange={() => {}}
+                    className="w-4 h-4 text-primary-600 mt-0.5 cursor-pointer" 
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-gray-800">Tạo & Gửi duyệt ngay</div>
+                    <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">Chuyển lên trạng thái "Chờ duyệt".</div>
+                  </div>
+                </div>
 
-              <div 
-                onClick={() => setSaveAs('draft')}
-                className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
-                  saveAs === 'draft' 
-                    ? 'border-slate-800 bg-slate-50' 
-                    : 'border-gray-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <input 
-                  type="radio" 
-                  name="saveAs" 
-                  checked={saveAs === 'draft'} 
-                  onChange={() => {}} // handled by parent click
-                  className="w-4 h-4 text-slate-800 mt-0.5 cursor-pointer" 
-                />
-                <div>
-                  <div className="text-xs font-bold text-gray-800">Lưu dưới dạng Nháp</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">Lưu lại để cập nhật thêm thông tin, chưa thực hiện bất cứ biến động kho nào.</div>
+                <div 
+                  onClick={() => setSaveAs('draft')}
+                  className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
+                    saveAs === 'draft' 
+                      ? 'border-slate-800 bg-slate-50' 
+                      : 'border-gray-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="saveAs" 
+                    checked={saveAs === 'draft'} 
+                    onChange={() => {}}
+                    className="w-4 h-4 text-slate-800 mt-0.5 cursor-pointer" 
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-gray-800">Lưu dưới dạng Nháp</div>
+                    <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">Lưu lại để cập nhật thêm thông tin.</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sidebar block 2: Summary Card */}
           <div className="card p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white space-y-4 shadow-xl border border-slate-700">
             <h3 className="text-xs uppercase tracking-wider font-extrabold text-slate-400">Thông tin tổng hợp phiếu</h3>
             
-            <div className="space-y-3 text-xs border-b border-slate-700 pb-4">
+            <div className="space-y-3 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-400">Nhà cung cấp:</span>
                 <span className="font-bold text-right max-w-40 truncate" title={supplier?.name || 'Chưa chọn'}>
@@ -974,11 +1016,15 @@ export default function CreateStockReceiptPage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Số mã hàng (SKU):</span>
-                <span className="font-extrabold text-slate-200">{items.length} SKU</span>
+                <span className="text-slate-400">Sản phẩm:</span>
+                <span className="font-extrabold text-slate-200">{productCount} SKU</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Tổng số lượng thực nhận:</span>
+                <span className="text-slate-400">Chuồng:</span>
+                <span className="font-extrabold text-violet-300">{cageCount} mục</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Tổng số lượng:</span>
                 <span className="font-extrabold text-slate-200">{totalItems} sp</span>
               </div>
               <div className="flex justify-between">
@@ -987,12 +1033,14 @@ export default function CreateStockReceiptPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Tổng giá trị phiếu nhập</span>
-              <div className="text-2xl font-black text-amber-400 tracking-tight">
-                {formatPrice(totalValue)}
+            {isWarehouse && (
+              <div className="pt-2 border-t border-slate-700">
+                <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">ℹ️ Giá nhập sẽ do Admin duyệt</div>
+                <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                  Admin sẽ thương lượng với NCC để nhập giá dự kiến và giá thực tế sau khi hàng về kho.
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sidebar Actions Buttons */}
@@ -1002,7 +1050,7 @@ export default function CreateStockReceiptPage() {
               disabled={items.length === 0}
               className="w-full py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/20 transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98"
             >
-              🚀 {saveAs === 'draft' ? 'Lưu nháp phiếu nhập' : 'Tạo & Gửi duyệt (GRN)'}
+              🚀 {isWarehouse ? 'Gửi Yêu Cầu Nhập Kho' : (saveAs === 'draft' ? 'Lưu nháp phiếu nhập' : 'Tạo & Gửi duyệt (GRN)')}
             </button>
             
             <button 
@@ -1025,10 +1073,10 @@ export default function CreateStockReceiptPage() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <span>🔍</span> Tìm & Chọn SKU Hàng Hóa Hệ Thống
+                  <span>🔍</span> Tìm & Chọn Hàng Hóa / Chuồng
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Dữ liệu đồng bộ trực tiếp từ Master Product Catalog. Click để thêm hàng loạt mặt hàng.
+                  Click để thêm sản phẩm hoặc chuồng vào phiếu nhập kho.
                 </p>
               </div>
               <button 
@@ -1039,136 +1087,178 @@ export default function CreateStockReceiptPage() {
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className="px-5 pt-3 pb-0 bg-white border-b border-gray-100 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPickerTab('product')}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl border border-b-0 transition-all ${
+                  pickerTab === 'product'
+                    ? 'bg-white text-primary-700 border-gray-200'
+                    : 'bg-gray-50 text-gray-500 border-transparent hover:text-gray-700'
+                }`}
+              >
+                <Package size={12} className="inline mr-1.5 -mt-0.5" />
+                Sản phẩm ({allSKUs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerTab('cage')}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl border border-b-0 transition-all ${
+                  pickerTab === 'cage'
+                    ? 'bg-white text-violet-700 border-gray-200'
+                    : 'bg-gray-50 text-gray-500 border-transparent hover:text-gray-700'
+                }`}
+              >
+                <Grid3X3 size={12} className="inline mr-1.5 -mt-0.5" />
+                Chuồng ({allCages.length})
+              </button>
+            </div>
+
             {/* Filters Area */}
             <div className="p-4 border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-3 bg-white">
               <div className="relative md:col-span-2">
                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                   className="form-input pl-9.5 text-xs py-2" 
-                  placeholder="Nhập tên sản phẩm, thương hiệu hoặc mã SKU để tìm kiếm..." 
+                  placeholder={pickerTab === 'product' ? 'Nhập tên sản phẩm, thương hiệu hoặc mã SKU...' : 'Nhập tên hoặc mã chuồng...'}
                   value={pickerSearch}
                   onChange={e => setPickerSearch(e.target.value)}
                 />
               </div>
-              <div>
-                <select 
-                  className="form-input text-xs py-2" 
-                  value={pickerCategory} 
-                  onChange={e => setPickerCategory(e.target.value)}
-                >
-                  <option value="all">-- Tất cả danh mục --</option>
-                  {uniqueCategories.filter(c => c !== 'all').map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+              {pickerTab === 'product' && (
+                <div>
+                  <select 
+                    className="form-input text-xs py-2" 
+                    value={pickerCategory} 
+                    onChange={e => setPickerCategory(e.target.value)}
+                  >
+                    <option value="all">-- Tất cả danh mục --</option>
+                    {uniqueCategories.filter(c => c !== 'all').map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* SKU Results List */}
+            {/* Results List */}
             <div className="overflow-y-auto p-5 space-y-3 flex-1 bg-slate-50/50">
-              {allSKUs
-                .filter(sku => {
-                  const searchLower = pickerSearch.toLowerCase()
-                  const matchesSearch = sku.fullName.toLowerCase().includes(searchLower) || 
-                                        sku.skuCode.toLowerCase().includes(searchLower) ||
-                                        (sku.brand && sku.brand.toLowerCase().includes(searchLower))
-                  const matchesCategory = pickerCategory === 'all' || sku.category === pickerCategory
-                  return matchesSearch && matchesCategory
-                })
-                .map(sku => {
-                  const cartItem = items.find(i => i.skuId === sku.skuId)
-                  const isSelected = !!cartItem
+              {pickerTab === 'product' ? (
+                <>
+                  {allSKUs
+                    .filter(sku => {
+                      const searchLower = pickerSearch.toLowerCase()
+                      const matchesSearch = sku.fullName.toLowerCase().includes(searchLower) || 
+                                            sku.skuCode.toLowerCase().includes(searchLower) ||
+                                            (sku.brand && sku.brand.toLowerCase().includes(searchLower))
+                      const matchesCategory = pickerCategory === 'all' || sku.category === pickerCategory
+                      return matchesSearch && matchesCategory
+                    })
+                    .map(sku => {
+                      const cartItem = items.find(i => i.skuId === sku.skuId && i.itemType === 'product')
+                      const isSelected = !!cartItem
 
-                  return (
-                    <div 
-                      key={sku.skuId}
-                      className={`p-3.5 bg-white border rounded-2xl flex items-center justify-between gap-4 transition-all ${
-                        isSelected 
-                          ? 'border-primary-400 shadow-sm bg-primary-50/5' 
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <img 
-                          src={sku.image} 
-                          alt={sku.productName} 
-                          className="w-12 h-12 rounded-xl object-cover border border-gray-100 bg-white" 
-                        />
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-800 leading-snug truncate">{sku.productName}</div>
-                          <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-2">
-                            <span className="font-mono font-bold text-gray-500">{sku.skuCode}</span>
-                            <span>·</span>
-                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded-md font-bold">{sku.variantName}</span>
+                      return (
+                        <div 
+                          key={sku.skuId}
+                          className={`p-3.5 bg-white border rounded-2xl flex items-center justify-between gap-4 transition-all ${
+                            isSelected 
+                              ? 'border-primary-400 shadow-sm bg-primary-50/5' 
+                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <img src={sku.image} alt={sku.productName} className="w-12 h-12 rounded-xl object-cover border border-gray-100 bg-white" />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-800 leading-snug truncate">{sku.productName}</div>
+                              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-2">
+                                <span className="font-mono font-bold text-gray-500">{sku.skuCode}</span>
+                                <span>·</span>
+                                <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded-md font-bold">{sku.variantName}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${sku.currentStock <= 5 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500'}`}>
+                                  Kho: {sku.currentStock} sp
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                              sku.currentStock <= 5 
-                                ? 'bg-rose-50 text-rose-600 border border-rose-100' 
-                                : 'bg-slate-100 text-slate-500'
-                            }`}>
-                              Kho hiện có: {sku.currentStock} sp
-                            </span>
-                            <span className="text-[10px] font-bold text-gray-600">Giá bán lẻ: {formatPrice(sku.price)}</span>
+                          <div className="shrink-0">
+                            {isSelected ? (
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => { const idx = items.findIndex(i => i.skuId === sku.skuId && i.itemType === 'product'); if (cartItem!.receivedQty <= 1) { removeItem(idx) } else { updateItem(idx, 'receivedQty', cartItem!.receivedQty - 1); updateItem(idx, 'orderedQty', cartItem!.orderedQty - 1) } }} className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold">-</button>
+                                <span className="w-8 text-center text-xs font-black text-slate-800">{cartItem!.orderedQty}</span>
+                                <button type="button" onClick={() => { const idx = items.findIndex(i => i.skuId === sku.skuId && i.itemType === 'product'); updateItem(idx, 'receivedQty', cartItem!.receivedQty + 1); updateItem(idx, 'orderedQty', cartItem!.orderedQty + 1) }} className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold">+</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => addItem(sku.skuId)} className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer">+ Chọn</button>
+                            )}
                           </div>
                         </div>
-                      </div>
+                      )
+                    })}
+                  {allSKUs.filter(sku => { const s = pickerSearch.toLowerCase(); return (sku.fullName.toLowerCase().includes(s) || sku.skuCode.toLowerCase().includes(s)) && (pickerCategory === 'all' || sku.category === pickerCategory) }).length === 0 && (
+                    <div className="p-8 text-center text-gray-400 text-xs">Không tìm thấy sản phẩm nào</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {allCages
+                    .filter(cage => {
+                      const s = pickerSearch.toLowerCase()
+                      return cage.fullName.toLowerCase().includes(s) || cage.cageCode.toLowerCase().includes(s)
+                    })
+                    .map(cage => {
+                      const cartItem = items.find(i => i.skuId === cage.cageId && i.itemType === 'cage')
+                      const isSelected = !!cartItem
 
-                      {/* Add/Quantity Selection */}
-                      <div className="shrink-0">
-                        {isSelected ? (
-                          <div className="flex items-center gap-2">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const idx = items.findIndex(i => i.skuId === sku.skuId)
-                                if (cartItem.receivedQty <= 1) {
-                                  removeItem(idx)
-                                } else {
-                                  updateItem(idx, 'receivedQty', cartItem.receivedQty - 1)
-                                  updateItem(idx, 'orderedQty', cartItem.orderedQty - 1)
-                                }
-                              }}
-                              className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
-                            >
-                              -
-                            </button>
-                            <span className="w-8 text-center text-xs font-black text-slate-800">{cartItem.receivedQty}</span>
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const idx = items.findIndex(i => i.skuId === sku.skuId)
-                                updateItem(idx, 'receivedQty', cartItem.receivedQty + 1)
-                                updateItem(idx, 'orderedQty', cartItem.orderedQty + 1)
-                              }}
-                              className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
-                            >
-                              +
-                            </button>
+                      return (
+                        <div 
+                          key={cage.cageId}
+                          className={`p-3.5 bg-white border rounded-2xl flex items-center justify-between gap-4 transition-all ${
+                            isSelected 
+                              ? 'border-violet-400 shadow-sm bg-violet-50/5' 
+                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <img src={cage.image} alt={cage.cageName} className="w-12 h-12 rounded-xl object-cover border border-gray-100 bg-white" />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-800 leading-snug truncate">{cage.cageName}</div>
+                              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-2">
+                                <span className="font-mono font-bold text-gray-500">{cage.cageCode}</span>
+                                <span>·</span>
+                                <span className="px-1.5 py-0.2 bg-violet-50 text-violet-600 rounded-md font-bold">Size {cage.size}</span>
+                                <span>·</span>
+                                <span className="text-gray-500">{cage.material}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${cage.currentStock <= 5 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500'}`}>
+                                  Kho: {cage.currentStock}
+                                </span>
+                                <span className="text-[9px] font-bold text-violet-600 capitalize">{cage.petType}</span>
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          <button 
-                            type="button"
-                            onClick={() => addItem(sku.skuId)}
-                            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-                          >
-                            + Chọn mã này
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-
-              {allSKUs.filter(sku => {
-                const searchLower = pickerSearch.toLowerCase()
-                const matchesSearch = sku.fullName.toLowerCase().includes(searchLower) || sku.skuCode.toLowerCase().includes(searchLower)
-                const matchesCategory = pickerCategory === 'all' || sku.category === pickerCategory
-                return matchesSearch && matchesCategory
-              }).length === 0 && (
-                <div className="p-8 text-center text-gray-400 text-xs">
-                  Không tìm thấy biến thể SKU nào khớp với bộ lọc tìm kiếm
-                </div>
+                          <div className="shrink-0">
+                            {isSelected ? (
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => { const idx = items.findIndex(i => i.skuId === cage.cageId && i.itemType === 'cage'); if (cartItem!.receivedQty <= 1) { removeItem(idx) } else { updateItem(idx, 'receivedQty', cartItem!.receivedQty - 1); updateItem(idx, 'orderedQty', cartItem!.orderedQty - 1) } }} className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold">-</button>
+                                <span className="w-8 text-center text-xs font-black text-slate-800">{cartItem!.orderedQty}</span>
+                                <button type="button" onClick={() => { const idx = items.findIndex(i => i.skuId === cage.cageId && i.itemType === 'cage'); updateItem(idx, 'receivedQty', cartItem!.receivedQty + 1); updateItem(idx, 'orderedQty', cartItem!.orderedQty + 1) }} className="w-7 h-7 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold">+</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => addCageItem(cage.cageId)} className="px-4 py-1.5 bg-violet-700 hover:bg-violet-800 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer">+ Thêm chuồng</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  {allCages.filter(c => { const s = pickerSearch.toLowerCase(); return c.fullName.toLowerCase().includes(s) || c.cageCode.toLowerCase().includes(s) }).length === 0 && (
+                    <div className="p-8 text-center text-gray-400 text-xs">Không tìm thấy chuồng nào</div>
+                  )}
+                </>
               )}
             </div>
 

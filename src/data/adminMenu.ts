@@ -3,6 +3,7 @@ import {
   CalendarCheck, DoorOpen, ShoppingCart, Warehouse, Truck,
   Tag, Megaphone, Bell, Cpu, ChevronRight, BarChart2,
   ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardCheck, History, Settings,
+  Grid3X3, DollarSign,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -65,8 +66,10 @@ export const adminMenu: MenuItem[] = [
       { label: 'Kiểm kê kho', path: '/admin/inventory/stock-count', icon: ClipboardCheck },
       { label: 'Lịch sử giao dịch', path: '/admin/inventory/history', icon: History },
       { label: 'Điều chỉnh tồn kho', path: '/admin/inventory/adjust', icon: ChevronRight },
+      { label: 'Duyệt yêu cầu nhập kho', path: '/admin/stock-in-approval', icon: DollarSign },
     ],
   },
+  { label: 'Quản lý Chuồng', path: '/admin/cages', icon: Grid3X3 },
   { label: 'Nhà cung cấp', path: '/admin/suppliers', icon: Truck },
   { label: 'Voucher', path: '/admin/vouchers', icon: Tag },
   { label: 'Khuyến mãi', path: '/admin/promotions', icon: Megaphone },

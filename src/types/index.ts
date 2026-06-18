@@ -346,16 +346,35 @@ export interface StockTransfer {
   note: string
 }
 
+// Cage / Enclosure (Chuồng thú cưng)
+export interface Cage {
+  id: string
+  name: string
+  code: string
+  size: 'S' | 'M' | 'L' | 'XL'
+  material: string
+  petType: 'dog' | 'cat' | 'bird' | 'rabbit' | 'other'
+  price: number
+  stock: number
+  image: string
+  status: 'active' | 'inactive'
+  description?: string
+  createdAt: string
+}
+
 // Stock Receipt (Phiếu Nhập Kho - GRN)
-export type StockReceiptStatus = 'draft' | 'pending_approval' | 'approved' | 'completed' | 'cancelled'
+export type StockReceiptStatus = 'draft' | 'pending_approval' | 'price_negotiating' | 'approved' | 'completed' | 'cancelled'
 
 export interface StockReceiptItem {
   skuId: string
   skuCode: string
   productName: string
+  itemType: 'product' | 'cage'
   orderedQty: number
   receivedQty: number
   unitCost: number
+  estimatedCost?: number
+  actualCost?: number
   batchNumber?: string
   expiryDate?: string
   note?: string
@@ -371,6 +390,8 @@ export interface StockReceipt {
   referenceId?: string
   items: StockReceiptItem[]
   totalValue: number
+  estimatedTotalValue?: number
+  actualTotalValue?: number
   status: StockReceiptStatus
   createdBy: string
   createdAt: string

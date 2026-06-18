@@ -288,6 +288,7 @@ export default function ReplenishmentsPage() {
       skuId: item.skuId,
       skuCode: item.skuCode,
       productName: item.productName,
+      itemType: 'product' as const,
       orderedQty: item.orderedQty,
       receivedQty: item.receivedQty,
       unitCost: item.unitCost,
