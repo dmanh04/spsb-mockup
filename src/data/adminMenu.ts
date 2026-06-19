@@ -86,12 +86,11 @@ export const adminMenu: MenuItem[] = [
 
 export const warehouseMenu: MenuItem[] = [
   { label: 'Dashboard Kho', path: '/warehouse', icon: LayoutDashboard },
-  { label: 'Tồn kho', path: '/warehouse/stock-in', icon: Package },
   {
     label: 'Phiếu nhập kho', path: '/warehouse/receipts', icon: ArrowDownToLine,
     children: [
       { label: 'Danh sách phiếu nhập', path: '/warehouse/receipts', icon: ChevronRight },
-      { label: 'Tạo phiếu nhập mới', path: '/warehouse/receipts/new', icon: ChevronRight },
+      { label: 'Gửi yêu cầu nhập mới', path: '/warehouse/receipts/new', icon: ChevronRight },
     ],
   },
   {
@@ -108,6 +107,7 @@ export const warehouseMenu: MenuItem[] = [
       { label: 'Tạo phiếu chuyển mới', path: '/warehouse/transfers/new', icon: ChevronRight },
     ],
   },
+  { label: 'Quản lý Chuồng', path: '/warehouse/cages', icon: Grid3X3 },
   { label: 'Kiểm kê kho', path: '/warehouse/stock-count', icon: ClipboardCheck },
   { label: 'Lịch sử giao dịch', path: '/warehouse/history', icon: History },
   { label: 'Báo cáo kho', path: '/warehouse/reports', icon: BarChart2 },

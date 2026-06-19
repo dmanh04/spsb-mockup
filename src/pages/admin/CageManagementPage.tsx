@@ -32,7 +32,7 @@ export default function CageManagementPage() {
   const [fPrice, setFPrice] = useState(500000)
   const [fStock, setFStock] = useState(0)
   const [fDescription, setFDescription] = useState('')
-  const [fStatus, setFStatus] = useState<'active' | 'inactive'>('active')
+  const [fStatus, setFStatus] = useState<'active' | 'inactive' | 'maintenance'>('active')
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -291,8 +291,8 @@ export default function CageManagementPage() {
                   </div>
                   <div className="col-span-2">
                     <label className="form-label font-bold text-gray-700 text-xs">Trạng thái</label>
-                    <select className="form-input text-xs" value={fStatus} onChange={e => setFStatus(e.target.value as 'active' | 'inactive')}>
-                      <option value="active">Hoạt động</option><option value="inactive">Ngừng hoạt động</option>
+                    <select className="form-input text-xs" value={fStatus} onChange={e => setFStatus(e.target.value as 'active' | 'inactive' | 'maintenance')}>
+                      <option value="active">Hoạt động</option><option value="inactive">Ngừng hoạt động</option><option value="maintenance">Bảo trì</option>
                     </select>
                   </div>
                 </div>

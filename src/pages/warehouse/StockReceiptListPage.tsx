@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Plus, Search, Eye, CheckCircle, XCircle, FileText, Filter } from 'lucide-react'
+import { Plus, Search, Eye, Package, DollarSign } from 'lucide-react'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import { formatPrice } from '@/utils/format'
@@ -34,11 +34,6 @@ export default function StockReceiptListPage() {
   const [receivingReceipt, setReceivingReceipt] = useState<StockReceipt | null>(null)
   const [receivingItems, setReceivingItems] = useState<StockReceiptItem[]>([])
 
-  function approve(id: string) {
-    const next = receipts.map(r => r.id === id ? { ...r, status: 'approved' as const, approvedBy: 'Admin PetCare', approvedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') } : r)
-    setReceipts(next)
-    saveStockReceipts(next)
-  }
 
   function startReceiving(r: StockReceipt) {
     setReceivingReceipt(r)
@@ -121,11 +116,6 @@ export default function StockReceiptListPage() {
     setReceivingItems([])
   }
 
-  function cancel(id: string) {
-    const next = receipts.map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r)
-    setReceipts(next)
-    saveStockReceipts(next)
-  }
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -194,20 +184,15 @@ export default function StockReceiptListPage() {
                     <td className="table-td text-xs text-gray-400">{r.createdAt.split(' ')[0]}</td>
                     <td className="table-td text-center">
                       <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                        {r.status === 'pending_approval' && (
-                          <>
-                            <button onClick={() => approve(r.id)} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt">
-                              <CheckCircle size={15} />
-                            </button>
-                            <button onClick={() => cancel(r.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Hủy">
-                              <XCircle size={15} />
-                            </button>
-                          </>
-                        )}
                         {r.status === 'approved' && (
                           <button onClick={() => startReceiving(r)} className="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
                             Nhập kho
                           </button>
+                        )}
+                        {r.status === 'pending_approval' && (
+                          <span className="px-2 py-1 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg">
+                            Chờ Admin duyệt
+                          </span>
                         )}
                         <button onClick={() => setSelectedId(r.id)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
                           <Eye size={14} />
@@ -233,6 +218,38 @@ export default function StockReceiptListPage() {
             </div>
 
             <div className="space-y-3 text-sm">
+
+              {/* Info Banner for pending status */}
+              {selected.status === 'pending_approval' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                  <DollarSign size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Đang chờ Admin duyệt giá</div>
+                    <div className="text-amber-700 mt-0.5 leading-relaxed">Phiếu đã gửi đến Admin. Admin sẽ thương lượng giá với NCC và duyệt phiếu này.</div>
+                  </div>
+                </div>
+              )}
+              {selected.status === 'price_negotiating' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-start gap-2">
+                  <DollarSign size={14} className="text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Đang thương lượng giá với NCC</div>
+                    <div className="text-blue-700 mt-0.5">Admin đang xử lý giá. Chờ kết quả duyệt.</div>
+                  </div>
+                </div>
+              )}
+              {selected.status === 'approved' && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-start gap-2">
+                  <Package size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Đã duyệt — Sẵn sàng nhập kho</div>
+                    {selected.estimatedTotalValue && (
+                      <div className="text-emerald-700 mt-0.5">Giá dự kiến: <strong>{formatPrice(selected.estimatedTotalValue)}</strong></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-[10px] text-gray-400 uppercase font-bold">Trạng thái</div>
@@ -318,7 +335,16 @@ export default function StockReceiptListPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-xs font-bold">{item.receivedQty}/{item.orderedQty}</div>
-                          <div className="text-[10px] text-gray-400">{formatPrice(item.unitCost)}/sp</div>
+                          {item.estimatedCost ? (
+                            <div className="text-[10px] text-amber-600 font-bold">Dự kiến: {formatPrice(item.estimatedCost)}</div>
+                          ) : item.unitCost > 0 ? (
+                            <div className="text-[10px] text-gray-400">{formatPrice(item.unitCost)}/sp</div>
+                          ) : (
+                            <div className="text-[10px] text-gray-300 italic">Chưa có giá</div>
+                          )}
+                          {item.actualCost ? (
+                            <div className="text-[10px] text-emerald-600 font-bold">Thực tế: {formatPrice(item.actualCost)}</div>
+                          ) : null}
                         </div>
                       </div>
                       {item.receivedQty < item.orderedQty && (
@@ -330,26 +356,37 @@ export default function StockReceiptListPage() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                <span className="text-sm font-bold text-gray-600">Tổng giá trị</span>
-                <span className="text-base font-black text-primary-600">{formatPrice(selected.totalValue)}</span>
+              <div className="border-t border-gray-100 pt-3 space-y-1.5">
+                {selected.estimatedTotalValue ? (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-600 font-bold flex items-center gap-1"><DollarSign size={11} />Giá dự kiến:</span>
+                    <span className="font-bold text-amber-700">{formatPrice(selected.estimatedTotalValue)}</span>
+                  </div>
+                ) : null}
+                {selected.actualTotalValue ? (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-emerald-600 font-bold flex items-center gap-1"><DollarSign size={11} />Giá thực tế:</span>
+                    <span className="font-black text-emerald-700">{formatPrice(selected.actualTotalValue)}</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-600">Tổng giá trị</span>
+                  <span className="text-base font-black text-primary-600">
+                    {selected.totalValue > 0 ? formatPrice(selected.totalValue) : (selected.estimatedTotalValue ? formatPrice(selected.estimatedTotalValue) : '—')}
+                  </span>
+                </div>
               </div>
 
               {/* Actions */}
-              {selected.status === 'pending_approval' && (
-                <div className="flex gap-2 pt-2">
-                  <button onClick={() => approve(selected.id)} className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
-                    <CheckCircle size={14} /> Duyệt phiếu
-                  </button>
-                  <button onClick={() => cancel(selected.id)} className="py-2.5 px-4 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors">
-                    Hủy
-                  </button>
-                </div>
-              )}
               {selected.status === 'approved' && (
-                <button onClick={() => startReceiving(selected)} className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl transition-colors">
-                  ✅ Tiến hành nhập kho thực tế
+                <button onClick={() => startReceiving(selected)} className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                  <Package size={14} /> Tiến hành nhập kho thực tế
                 </button>
+              )}
+              {(selected.status === 'pending_approval' || selected.status === 'price_negotiating') && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-center text-gray-500">
+                  Admin đang xử lý yêu cầu này. Bạn sẽ nhận thông báo khi phiếu được duyệt.
+                </div>
               )}
             </div>
           </div>
