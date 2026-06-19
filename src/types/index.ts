@@ -353,17 +353,25 @@ export interface Cage {
   code: string
   size: 'S' | 'M' | 'L' | 'XL'
   material: string
+  color?: string
   petType: 'dog' | 'cat' | 'bird' | 'rabbit' | 'other'
-  price: number
+  costPrice: number       // Giá vốn nhập
+  price: number           // Giá bán lẻ
   stock: number
+  minStock: number        // Ngưỡng cảnh báo tồn thấp
+  barcode?: string
   image: string
   status: 'active' | 'inactive' | 'maintenance'
   description?: string
-  dimensions?: string
-  maxWeight?: number
-  warranty?: number
-  location?: string
+  // Kích thước chi tiết (cm)
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  maxWeight?: number      // Cân nặng thú tối đa (kg)
+  warranty?: number       // Bảo hành (tháng)
+  location?: string       // Vị trí trong kho
   createdAt: string
+  lastRestockedAt?: string
 }
 
 // Stock Receipt (Phiếu Nhập Kho - GRN)
