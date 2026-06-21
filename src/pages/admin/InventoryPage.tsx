@@ -36,22 +36,8 @@ export default function AdminInventoryPage() {
   const [filterCategory, setFilterCategory] = useState<'all' | 'product' | 'cage'>('all')
   const [search, setSearch] = useState('')
 
-  // Stock In Request Modal & Form States
+  // Stock In Requests
   const [receiptsList, setReceiptsList] = useState<StockReceipt[]>(() => [...STOCK_RECEIPTS])
-  const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
-  const [newReqSupplierId, setNewReqSupplierId] = useState('')
-  const [newReqItems, setNewReqItems] = useState<{
-    skuId: string
-    skuCode: string
-    productName: string
-    itemType: 'product' | 'cage'
-    orderedQty: number
-  }[]>([])
-  const [addingType, setAddingType] = useState<'product' | 'cage'>('product')
-  const [selectedProductSkuId, setSelectedProductSkuId] = useState('')
-  const [selectedCageId, setSelectedCageId] = useState('')
-  const [addingQty, setAddingQty] = useState<number>(1)
-  const [newReqNote, setNewReqNote] = useState('')
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState('')
@@ -236,117 +222,7 @@ export default function AdminInventoryPage() {
   const pendingReceipts = receiptsList.filter(r => r.status === 'pending_approval').length
   const pendingIssues = STOCK_ISSUES.filter(r => r.status === 'pending_approval').length
 
-  // Helper arrays for adding items in creation modal
-  const allProductSKUs = PRODUCT_MOCK_LIST.filter(p => p.status === 'active').flatMap(prod => 
-    prod.skus.map(sku => ({
-      skuId: sku.id,
-      skuCode: sku.sku,
-      productName: `${prod.name} - ${Object.values(sku.attributes).join('/')}`,
-      itemType: 'product' as const
-    }))
-  )
 
-  const allCages = CAGE_MOCK_LIST.filter(c => c.status === 'active').map(cage => ({
-    skuId: cage.id,
-    skuCode: cage.code,
-    productName: `${cage.name} (Size ${cage.size})`,
-    itemType: 'cage' as const
-  }))
-
-  const handleAddItemToRequest = () => {
-    if (addingType === 'product') {
-      const found = allProductSKUs.find(s => s.skuId === selectedProductSkuId)
-      if (!found) return
-      if (newReqItems.some(i => i.skuId === found.skuId)) {
-        setToastMessage('Mặt hàng này đã có trong danh sách yêu cầu!')
-        setTimeout(() => setToastMessage(''), 3000)
-        return
-      }
-      setNewReqItems(prev => [...prev, {
-        skuId: found.skuId,
-        skuCode: found.skuCode,
-        productName: found.productName,
-        itemType: 'product',
-        orderedQty: addingQty
-      }])
-    } else {
-      const found = allCages.find(c => c.skuId === selectedCageId)
-      if (!found) return
-      if (newReqItems.some(i => i.skuId === found.skuId)) {
-        setToastMessage('Mặt hàng này đã có trong danh sách yêu cầu!')
-        setTimeout(() => setToastMessage(''), 3000)
-        return
-      }
-      setNewReqItems(prev => [...prev, {
-        skuId: found.skuId,
-        skuCode: found.skuCode,
-        productName: found.productName,
-        itemType: 'cage',
-        orderedQty: addingQty
-      }])
-    }
-    setSelectedProductSkuId('')
-    setSelectedCageId('')
-    setAddingQty(1)
-  }
-
-  const handleSubmitRequest = () => {
-    if (!newReqSupplierId) {
-      alert('Vui lòng chọn nhà cung cấp!')
-      return
-    }
-    if (newReqItems.length === 0) {
-      alert('Vui lòng thêm ít nhất một mặt hàng!')
-      return
-    }
-    const supplier = SUPPLIER_MOCK_LIST.find(s => s.id === newReqSupplierId)
-    if (!supplier) return
-
-    const receiptId = `GRN-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`
-    
-    const newReceipt: StockReceipt = {
-      id: receiptId,
-      supplierId: supplier.id,
-      supplierName: supplier.name,
-      warehouseId: 'warehouse',
-      items: newReqItems.map(item => ({
-        skuId: item.skuId,
-        skuCode: item.skuCode,
-        productName: item.productName,
-        itemType: item.itemType,
-        orderedQty: item.orderedQty,
-        receivedQty: 0,
-        unitCost: 0,
-        estimatedCost: 0,
-        actualCost: 0,
-        batchNumber: '',
-        expiryDate: '',
-      })),
-      totalValue: 0,
-      estimatedTotalValue: 0,
-      actualTotalValue: 0,
-      status: 'pending_approval',
-      createdBy: 'Bùi Văn Khánh',
-      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      note: newReqNote
-    }
-
-    const updatedList = [newReceipt, ...STOCK_RECEIPTS]
-    saveStockReceipts(updatedList)
-    setReceiptsList(updatedList)
-    
-    addNotification({
-      type: 'inventory',
-      title: `Yêu cầu nhập kho mới: ${receiptId}`,
-      body: `Quản lý kho vừa gửi một yêu cầu nhập kho mới từ nhà cung cấp ${supplier.name}.`,
-      link: '/admin/stock-in-approval',
-      forRoles: ['admin']
-    })
-
-    setShowCreateRequestModal(false)
-    setToastMessage('Đã tạo và gửi yêu cầu nhập kho thành công!')
-    setTimeout(() => setToastMessage(''), 3000)
-  }
 
   return (
     <div className="space-y-6 text-sm animate-fadeIn">
@@ -449,8 +325,22 @@ export default function AdminInventoryPage() {
                     const total = items.reduce((s, i) => s + i.quantity, 0)
                     const shopName = shopId === 'warehouse' ? 'Kho Trung Tâm' : (SHOP_MOCK_LIST.find(s => s.id === shopId)?.name ?? shopId)
                     return (
-                      <tr key={shopId} className="hover:bg-gray-50/50">
-                        <td className="px-5 py-3 font-bold text-gray-900 text-sm">{shopName}</td>
+                      <tr 
+                        key={shopId} 
+                        onClick={() => {
+                          setFilterShop(shopId)
+                          setActiveTab('balances')
+                        }}
+                        className="hover:bg-indigo-50/40 cursor-pointer transition-all active:scale-[0.99] group"
+                      >
+                        <td className="px-5 py-3 font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors">
+                          <div className="flex items-center gap-1.5">
+                            {shopName}
+                            <span className="text-[10px] font-semibold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                              → Xem chi tiết
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-5 py-3 text-right font-bold text-sm">{items.length}</td>
                         <td className="px-5 py-3 text-right font-mono text-sm">{total}</td>
                         <td className="px-5 py-3 text-right">{out > 0 ? <span className="badge-red text-[10px]">{out}</span> : <span className="text-gray-300">0</span>}</td>
@@ -473,17 +363,6 @@ export default function AdminInventoryPage() {
                 <h3 className="text-base font-bold text-gray-900">Yêu cầu & Tiến độ Nhập kho</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Quản lý và theo dõi các yêu cầu nhập hàng (Sản phẩm & Chuồng)</p>
               </div>
-              <button
-                onClick={() => {
-                  setNewReqSupplierId('')
-                  setNewReqItems([])
-                  setNewReqNote('')
-                  setShowCreateRequestModal(true)
-                }}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
-              >
-                <Plus size={14} /> Tạo yêu cầu nhập kho
-              </button>
             </div>
             
             <div className="overflow-x-auto">
@@ -1077,195 +956,6 @@ export default function AdminInventoryPage() {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: TẠO YÊU CẦU NHẬP KHO */}
-      {showCreateRequestModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 shadow-2xl overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-100 overflow-hidden animate-zoomIn flex flex-col max-h-[90vh]">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/10 shrink-0">
-              <div className="flex items-center gap-2.5 text-indigo-600">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
-                  <ArrowDownToLine size={18} />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-gray-900 text-base">Tạo Yêu Cầu Nhập Kho</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Thêm các mặt hàng sản phẩm hoặc chuồng nuôi cần nhập kho</p>
-                </div>
-              </div>
-              <button onClick={() => setShowCreateRequestModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1.5 rounded-full transition-colors font-bold">&times;</button>
-            </div>
-
-            <div className="p-6 space-y-4 text-left overflow-y-auto flex-1">
-              {/* Supplier Selection */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nhà cung cấp *</label>
-                <select
-                  value={newReqSupplierId}
-                  onChange={e => setNewReqSupplierId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-xs"
-                >
-                  <option value="">Chọn nhà cung cấp</option>
-                  {SUPPLIER_MOCK_LIST.filter(s => s.status === 'active').map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.contactPerson})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Add Item Form */}
-              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-150 space-y-3">
-                <div className="text-xs font-extrabold text-indigo-700">Thêm mặt hàng vào yêu cầu</div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                  {/* Item Type */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Phân loại</label>
-                    <select
-                      value={addingType}
-                      onChange={e => {
-                        setAddingType(e.target.value as any)
-                        setSelectedProductSkuId('')
-                        setSelectedCageId('')
-                      }}
-                      className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
-                    >
-                      <option value="product">Sản phẩm (SKU)</option>
-                      <option value="cage">Chuồng nuôi</option>
-                    </select>
-                  </div>
-
-                  {/* Item Dropdown */}
-                  <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Chọn mặt hàng</label>
-                    {addingType === 'product' ? (
-                      <select
-                        value={selectedProductSkuId}
-                        onChange={e => setSelectedProductSkuId(e.target.value)}
-                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
-                      >
-                        <option value="">Chọn sản phẩm SKU</option>
-                        {allProductSKUs.map(sku => (
-                          <option key={sku.skuId} value={sku.skuId}>{sku.productName}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <select
-                        value={selectedCageId}
-                        onChange={e => setSelectedCageId(e.target.value)}
-                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
-                      >
-                        <option value="">Chọn chuồng nuôi</option>
-                        {allCages.map(cage => (
-                          <option key={cage.skuId} value={cage.skuId}>{cage.productName} - {cage.skuCode}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* Quantity */}
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Số lượng</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={addingQty}
-                        onChange={e => setAddingQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-bold text-center"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAddItemToRequest}
-                      disabled={addingType === 'product' ? !selectedProductSkuId : !selectedCageId}
-                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-sm transition-all shrink-0 cursor-pointer"
-                    >
-                      Thêm
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Added Items List */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Danh sách mặt hàng đã chọn ({newReqItems.length})</label>
-                <div className="border border-gray-150 rounded-2xl overflow-hidden bg-white max-h-48 overflow-y-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      <tr>
-                        <th className="px-4 py-2">Loại</th>
-                        <th className="px-4 py-2">Tên mặt hàng</th>
-                        <th className="px-4 py-2">Mã code</th>
-                        <th className="px-4 py-2 text-right">Số lượng</th>
-                        <th className="px-4 py-2 text-center">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 font-semibold text-xs text-gray-700">
-                      {newReqItems.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-4 py-6 text-center text-gray-400">Chưa có mặt hàng nào được chọn.</td>
-                        </tr>
-                      ) : (
-                        newReqItems.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50/50">
-                            <td className="px-4 py-2.5">
-                              {item.itemType === 'cage' ? (
-                                <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 text-[9px] font-bold rounded">Chuồng</span>
-                              ) : (
-                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold rounded">SP</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5 max-w-[200px] truncate">{item.productName}</td>
-                            <td className="px-4 py-2.5 font-mono text-[10px] text-gray-400">{item.skuCode}</td>
-                            <td className="px-4 py-2.5 text-right font-mono font-bold">{item.orderedQty}</td>
-                            <td className="px-4 py-2.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setNewReqItems(prev => prev.filter((_, i) => i !== idx))}
-                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-                              >
-                                <Trash size={12} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Note */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Ghi chú</label>
-                <textarea
-                  rows={2}
-                  value={newReqNote}
-                  onChange={e => setNewReqNote(e.target.value)}
-                  placeholder="Ghi chú thêm về lô hàng, yêu cầu đặc biệt..."
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-xs resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowCreateRequestModal(false)}
-                className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 transition-all cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmitRequest}
-                disabled={!newReqSupplierId || newReqItems.length === 0}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-150 transition-all cursor-pointer"
-              >
-                Gửi yêu cầu nhập kho
-              </button>
             </div>
           </div>
         </div>

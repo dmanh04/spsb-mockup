@@ -10,10 +10,6 @@ import { formatPrice } from '@/utils/format'
 import type { StockIssueItem, StockIssueType, StockIssueStatus } from '@/types'
 
 const ISSUE_TYPES: { value: StockIssueType; label: string; desc: string; color: string }[] = [
-  { value: 'sale', label: 'Xuất bán hàng', desc: 'Xuất hàng theo đơn hàng bán tại quầy/online', color: 'border-emerald-200 bg-emerald-50/50' },
-  { value: 'service_consumable', label: 'Tiêu hao dịch vụ', desc: 'Vật tư sử dụng cho phòng Grooming/Spa/Tắm', color: 'border-purple-200 bg-purple-50/50' },
-  { value: 'return_supplier', label: 'Trả nhà cung cấp', desc: 'Hàng lỗi, gần HSD trả lại NCC', color: 'border-blue-200 bg-blue-50/50' },
-  { value: 'damaged', label: 'Hàng hỏng / Hủy', desc: 'Hàng bể, hỏng, hết hạn sử dụng', color: 'border-red-200 bg-red-50/50' },
   { value: 'transfer', label: 'Xuất chuyển kho', desc: 'Chuyển hàng sang chi nhánh khác', color: 'border-amber-200 bg-amber-50/50' },
 ]
 
@@ -27,7 +23,7 @@ export default function CreateStockIssuePage() {
   const location = useLocation()
   const prefix = location.pathname.startsWith('/admin') ? '/admin/inventory' : '/warehouse'
 
-  const [issueType, setIssueType] = useState<StockIssueType>('sale')
+  const [issueType, setIssueType] = useState<StockIssueType>('transfer')
   const [warehouseId, setWarehouseId] = useState('warehouse')
   const [targetShopId, setTargetShopId] = useState('')
   const [reason, setReason] = useState('')
@@ -94,7 +90,7 @@ export default function CreateStockIssuePage() {
     if (items.some(i => !i.skuId)) { setError('Có SKU chưa chọn sản phẩm'); return }
     if (!reason.trim()) { setError('Vui lòng nhập lý do xuất kho'); return }
     if (hasOverStock) { setError('Có SKU vượt quá tồn kho hiện tại'); return }
-    if (issueType === 'transfer' && !targetShopId) { setError('Vui lòng chọn chi nhánh nhận'); return }
+    if (!targetShopId) { setError('Vui lòng chọn chi nhánh nhận'); return }
 
     const today = new Date()
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
@@ -104,7 +100,7 @@ export default function CreateStockIssuePage() {
       id: newId,
       type: issueType,
       warehouseId,
-      targetShopId: issueType === 'transfer' ? targetShopId : undefined,
+      targetShopId,
       items,
       totalValue,
       status: 'pending_approval' as StockIssueStatus,
@@ -151,50 +147,28 @@ export default function CreateStockIssuePage() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          {/* Issue Type Selection */}
-          <div className="card p-5 space-y-4">
-            <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
-              📋 Loại xuất kho
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {ISSUE_TYPES.map(t => (
-                <label key={t.value}
-                  className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition-all ${issueType === t.value ? t.color + ' ring-2 ring-primary-300' : 'border-gray-200 hover:bg-gray-50'}`}>
-                  <input type="radio" name="issueType" value={t.value} checked={issueType === t.value}
-                    onChange={() => setIssueType(t.value)} className="mt-0.5 w-3.5 h-3.5 text-primary-600" />
-                  <div>
-                    <div className="text-xs font-bold">{t.label}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{t.desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Warehouse & Target */}
           <div className="card p-5 space-y-4">
             <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
-              <Package size={16} className="text-primary-500" /> Thông tin xuất kho
+              <Package size={16} className="text-amber-500" /> Thông tin xuất kho (Chuyển kho chi nhánh)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="form-label">Kho xuất <span className="text-rose-500">*</span></label>
-                <select className="form-input" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+                <label className="form-label text-xs font-bold text-gray-700">Kho xuất <span className="text-rose-500">*</span></label>
+                <select className="form-input text-xs" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
                   {SHOPS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
-              {issueType === 'transfer' && (
-                <div>
-                  <label className="form-label">Chi nhánh nhận <span className="text-rose-500">*</span></label>
-                  <select className="form-input" value={targetShopId} onChange={e => setTargetShopId(e.target.value)}>
-                    <option value="">-- Chọn chi nhánh --</option>
-                    {SHOPS.filter(s => s.id !== warehouseId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div className={issueType === 'transfer' ? '' : 'col-span-1'}>
-                <label className="form-label">Lý do xuất kho <span className="text-rose-500">*</span></label>
-                <input className="form-input" placeholder="VD: Xuất bán ORD-005, Hàng hết HSD..." value={reason} onChange={e => setReason(e.target.value)} />
+              <div>
+                <label className="form-label text-xs font-bold text-gray-700">Chi nhánh nhận <span className="text-rose-500">*</span></label>
+                <select className="form-input text-xs" value={targetShopId} onChange={e => setTargetShopId(e.target.value)}>
+                  <option value="">-- Chọn chi nhánh nhận --</option>
+                  {SHOPS.filter(s => s.id !== warehouseId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="form-label text-xs font-bold text-gray-700">Lý do xuất kho <span className="text-rose-500">*</span></label>
+                <input className="form-input text-xs" placeholder="VD: Xuất chuyển kho bổ sung tồn kho định kỳ cho chi nhánh..." value={reason} onChange={e => setReason(e.target.value)} />
               </div>
             </div>
           </div>

@@ -83,7 +83,7 @@ export default function CreateStockReceiptPage() {
     cageName: cage.name,
     size: cage.size,
     material: cage.material,
-    petType: cage.petType,
+    petTypes: cage.petTypes,
     price: cage.price,
     image: cage.image,
     currentStock: cage.stock,
@@ -1247,7 +1247,12 @@ export default function CreateStockReceiptPage() {
                                 <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${cage.currentStock <= 5 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500'}`}>
                                   Kho: {cage.currentStock}
                                 </span>
-                                <span className="text-[9px] font-bold text-violet-600 capitalize">{cage.petType}</span>
+                                <span className="text-[9px] font-bold text-violet-600 capitalize">
+                                  {cage.petTypes?.map(pt => {
+                                    const petNames: Record<string, string> = { dog: 'Chó', cat: 'Mèo', bird: 'Chim', rabbit: 'Thỏ', other: 'Khác' }
+                                    return petNames[pt] || pt
+                                  }).join(', ')}
+                                </span>
                               </div>
                             </div>
                           </div>

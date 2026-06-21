@@ -363,7 +363,7 @@ export interface Cage {
   size: 'S' | 'M' | 'L' | 'XL'
   material: string
   color?: string
-  petType: 'dog' | 'cat' | 'bird' | 'rabbit' | 'other'
+  petTypes: ('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]
   costPrice: number       // Giá vốn nhập
   price: number           // Giá bán lẻ
   stock: number
@@ -436,7 +436,7 @@ export interface StockReceipt {
 }
 
 // Stock Issue (Phiếu Xuất Kho - GIN)
-export type StockIssueType = 'sale' | 'service_consumable' | 'return_supplier' | 'damaged' | 'transfer'
+export type StockIssueType = 'transfer'
 export type StockIssueStatus = 'draft' | 'pending_approval' | 'approved' | 'completed' | 'cancelled'
 
 export interface StockIssueItem {

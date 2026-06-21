@@ -17,10 +17,6 @@ const STATUS_MAP: Record<StockIssueStatus, { label: string; badge: string }> = {
 }
 
 const TYPE_MAP: Record<StockIssueType, { label: string; badge: string }> = {
-  sale: { label: 'Bán hàng', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
-  service_consumable: { label: 'Tiêu hao DV', badge: 'bg-purple-50 text-purple-700 border border-purple-200' },
-  return_supplier: { label: 'Trả NCC', badge: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  damaged: { label: 'Hàng hỏng', badge: 'bg-red-50 text-red-600 border border-red-200' },
   transfer: { label: 'Chuyển kho', badge: 'bg-amber-50 text-amber-700 border border-amber-200' },
 }
 
@@ -130,12 +126,7 @@ export default function StockIssueListPage() {
             </button>
           ))}
         </div>
-        <select className="form-input w-auto text-sm py-1.5" value={filterType} onChange={e => setFilterType(e.target.value as StockIssueType | 'all')}>
-          <option value="all">Tất cả loại</option>
-          {(Object.entries(TYPE_MAP) as [StockIssueType, { label: string }][]).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
+
         <div className="relative flex-1 min-w-48">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="form-input pl-9 text-sm" placeholder="Tìm mã phiếu, lý do..." value={search} onChange={e => setSearch(e.target.value)} />

@@ -16,7 +16,7 @@ type SortField = 'name' | 'code' | 'price' | 'stock' | 'createdAt'
 type SortDir = 'asc' | 'desc'
 type Perspective = 'admin' | 'warehouse'
 
-const PET_TYPE_MAP: Record<Cage['petType'], { label: string; color: string; emoji: string }> = {
+const PET_TYPE_MAP: Record<'dog' | 'cat' | 'bird' | 'rabbit' | 'other', { label: string; color: string; emoji: string }> = {
   dog: { label: 'Chó', color: 'bg-blue-100 text-blue-800 border-blue-200', emoji: '🐕' },
   cat: { label: 'Mèo', color: 'bg-pink-100 text-pink-800 border-pink-200', emoji: '🐈' },
   bird: { label: 'Chim', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', emoji: '🐦' },
@@ -73,7 +73,7 @@ export default function CageManagementPage() {
   const [perspective, setPerspective] = useState<Perspective>(defaultPerspective)
   const [cages, setCages] = useState<Cage[]>(CAGE_MOCK_LIST)
   const [search, setSearch] = useState('')
-  const [filterPet, setFilterPet] = useState<Cage['petType'] | 'all'>('all')
+  const [filterPet, setFilterPet] = useState<'dog' | 'cat' | 'bird' | 'rabbit' | 'other' | 'all'>('all')
   const [filterSize, setFilterSize] = useState<Cage['size'] | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<Cage['status'] | 'all'>('all')
   
@@ -98,7 +98,7 @@ export default function CageManagementPage() {
   const [fSize, setFSize] = useState<Cage['size']>('M')
   const [fMaterial, setFMaterial] = useState('')
   const [fColor, setFColor] = useState('')
-  const [fPetType, setFPetType] = useState<Cage['petType']>('dog')
+  const [fPetTypes, setFPetTypes] = useState<('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]>(['dog'])
   const [fCostPrice, setFCostPrice] = useState(0)
   const [fPrice, setFPrice] = useState(0)
   const [fStock, setFStock] = useState(0)
@@ -206,13 +206,15 @@ export default function CageManagementPage() {
   const typeDistribution = useMemo(() => {
     const counts: Record<string, number> = {}
     cages.forEach(c => {
-      counts[c.petType] = (counts[c.petType] || 0) + c.stock
+      c.petTypes?.forEach(t => {
+        counts[t] = (counts[t] || 0) + c.stock
+      })
     })
     return Object.entries(counts).map(([type, count]) => ({
       type,
       count,
-      label: PET_TYPE_MAP[type as Cage['petType']]?.label ?? type,
-      emoji: PET_TYPE_MAP[type as Cage['petType']]?.emoji ?? '🐾'
+      label: PET_TYPE_MAP[type as 'dog' | 'cat' | 'bird' | 'rabbit' | 'other']?.label ?? type,
+      emoji: PET_TYPE_MAP[type as 'dog' | 'cat' | 'bird' | 'rabbit' | 'other']?.emoji ?? '🐾'
     }))
   }, [cages])
 
@@ -234,7 +236,7 @@ export default function CageManagementPage() {
         c.code.toLowerCase().includes(q) ||
         (c.supplierName ?? '').toLowerCase().includes(q)
 
-      const matchPet = filterPet === 'all' || c.petType === filterPet
+      const matchPet = filterPet === 'all' || c.petTypes?.includes(filterPet)
       const matchSize = filterSize === 'all' || c.size === filterSize
       const matchStatus = filterStatus === 'all' || c.status === filterStatus
       
@@ -273,7 +275,7 @@ export default function CageManagementPage() {
   function openCreate() {
     setEditing(null)
     setFName(''); setFCode(''); setFSize('M'); setFMaterial('Inox 304'); setFColor('Bạc')
-    setFPetType('dog'); setFCostPrice(100000); setFPrice(150000); setFStock(10); setFMinStock(3)
+    setFPetTypes(['dog']); setFCostPrice(100000); setFPrice(150000); setFStock(10); setFMinStock(3)
     setFStatus('active'); setFDesc('')
     setFL(60); setFW(45); setFH(50); setFMaxWeight(10)
     setFSupplierName('Xưởng Cơ Khí Inox Hoàng Gia')
@@ -285,7 +287,7 @@ export default function CageManagementPage() {
     setEditing(cage)
     setFName(cage.name); setFCode(cage.code); setFSize(cage.size)
     setFMaterial(cage.material); setFColor(cage.color ?? '')
-    setFPetType(cage.petType); setFCostPrice(cage.costPrice); setFPrice(cage.price)
+    setFPetTypes(cage.petTypes || []); setFCostPrice(cage.costPrice); setFPrice(cage.price)
     setFStock(cage.stock); setFMinStock(cage.minStock)
     setFStatus(cage.status); setFDesc(cage.description ?? '')
     setFL(cage.lengthCm ?? ''); setFW(cage.widthCm ?? ''); setFH(cage.heightCm ?? '')
@@ -300,14 +302,15 @@ export default function CageManagementPage() {
     e.preventDefault()
     if (!fName.trim() || !fCode.trim()) return
 
-    const petColors: Record<Cage['petType'], string> = { dog: '3B82F6', cat: 'EC4899', bird: '10B981', rabbit: '8B5CF6', other: '94A3B8' }
-    const img = `https://placehold.co/200x200/${petColors[fPetType]}/white?text=${encodeURIComponent(fCode)}`
+    const petColors: Record<'dog' | 'cat' | 'bird' | 'rabbit' | 'other', string> = { dog: '3B82F6', cat: 'EC4899', bird: '10B981', rabbit: '8B5CF6', other: '94A3B8' }
+    const primaryPetType = fPetTypes[0] || 'other'
+    const img = `https://placehold.co/200x200/${petColors[primaryPetType]}/white?text=${encodeURIComponent(fCode)}`
 
     if (editing) {
       const updated = cages.map(c => c.id === editing.id ? {
         ...c,
         name: fName, code: fCode.toUpperCase(), size: fSize, material: fMaterial, color: fColor,
-        petType: fPetType, costPrice: fCostPrice, price: fPrice, stock: fStock, minStock: fMinStock,
+        petTypes: fPetTypes, costPrice: fCostPrice, price: fPrice, stock: fStock, minStock: fMinStock,
         status: fStatus, description: fDesc,
         lengthCm: fL !== '' ? Number(fL) : undefined,
         widthCm: fW !== '' ? Number(fW) : undefined,
@@ -324,7 +327,7 @@ export default function CageManagementPage() {
     } else {
       const newCage: Cage = {
         id: `CAGE-${Date.now()}`, name: fName, code: fCode.toUpperCase(), size: fSize,
-        material: fMaterial, color: fColor, petType: fPetType, costPrice: fCostPrice,
+        material: fMaterial, color: fColor, petTypes: fPetTypes, costPrice: fCostPrice,
         price: fPrice, stock: fStock, minStock: fMinStock, image: img,
         status: fStatus, description: fDesc,
         lengthCm: fL !== '' ? Number(fL) : undefined,
@@ -818,10 +821,14 @@ export default function CageManagementPage() {
 
                       {/* Pet Type & Size */}
                       <td className="py-3.5 px-4">
-                        <div className="flex flex-col gap-1">
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg border w-fit ${PET_TYPE_MAP[c.petType].color}`}>
-                            {PET_TYPE_MAP[c.petType].emoji} {PET_TYPE_MAP[c.petType].label}
-                          </span>
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-wrap gap-1 max-w-[120px]">
+                            {c.petTypes?.map(pt => (
+                              <span key={pt} className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg border w-fit ${PET_TYPE_MAP[pt]?.color || ''}`}>
+                                {PET_TYPE_MAP[pt]?.emoji} {PET_TYPE_MAP[pt]?.label}
+                              </span>
+                            ))}
+                          </div>
                           <span className="text-[10px] bg-gray-100 text-gray-600 font-black px-2 py-0.5 rounded-lg w-fit">Size {c.size}</span>
                         </div>
                       </td>
@@ -937,9 +944,11 @@ export default function CageManagementPage() {
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black border ${STATUS_MAP[selected.status].badge}`}>
                     {STATUS_MAP[selected.status].label}
                   </span>
-                  <span className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg border ${PET_TYPE_MAP[selected.petType].color}`}>
-                    {PET_TYPE_MAP[selected.petType].emoji} {PET_TYPE_MAP[selected.petType].label}
-                  </span>
+                  {selected.petTypes?.map(pt => (
+                    <span key={pt} className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg border ${PET_TYPE_MAP[pt]?.color || ''}`}>
+                      {PET_TYPE_MAP[pt]?.emoji} {PET_TYPE_MAP[pt]?.label}
+                    </span>
+                  ))}
                   <span className="text-[9px] bg-gray-100 text-gray-600 font-black px-1.5 py-0.5 rounded-lg">Size {selected.size}</span>
                 </div>
                 <h3 className="text-sm font-black text-gray-900 mt-2 leading-snug">{selected.name}</h3>
@@ -1233,14 +1242,34 @@ export default function CageManagementPage() {
                     <input className="form-input text-xs py-2 rounded-xl font-mono uppercase" placeholder="CAGE-DOG-M-INOX" required value={fCode} onChange={e => setFCode(e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Loại thú cưng sử dụng</label>
-                    <select className="form-input text-xs py-2 rounded-xl" value={fPetType} onChange={e => setFPetType(e.target.value as Cage['petType'])}>
-                      <option value="dog">🐕 Chó</option>
-                      <option value="cat">🐈 Mèo</option>
-                      <option value="bird">🐦 Chim</option>
-                      <option value="rabbit">🐇 Thỏ</option>
-                      <option value="other">🐾 Khác</option>
-                    </select>
+                    <label className="text-xs font-bold text-gray-600 block">Loại thú cưng sử dụng</label>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {(['dog', 'cat', 'bird', 'rabbit', 'other'] as const).map(pt => {
+                        const isSelected = fPetTypes.includes(pt)
+                        const mapping = PET_TYPE_MAP[pt]
+                        return (
+                          <button
+                            key={pt}
+                            type="button"
+                            onClick={() => {
+                              setFPetTypes(prev =>
+                                prev.includes(pt)
+                                  ? (prev.length > 1 ? prev.filter(t => t !== pt) : prev)
+                                  : [...prev, pt]
+                              )
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer select-none ${
+                              isSelected
+                                ? 'bg-primary-600 border-primary-600 text-white shadow-md'
+                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span>{mapping.emoji}</span>
+                            <span>{mapping.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">Phân cỡ (Size)</label>
