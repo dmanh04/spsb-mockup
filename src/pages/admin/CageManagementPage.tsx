@@ -529,7 +529,7 @@ export default function CageManagementPage() {
             }`}
           >
             <BarChart2 size={13} />
-            Kinh Doanh & Giá Vốn
+            Giá Vốn & Định Mức
           </button>
           <button
             onClick={() => setPerspective('warehouse')}
@@ -563,12 +563,12 @@ export default function CageManagementPage() {
 
             <div className="bg-gradient-to-br from-emerald-50/40 to-white rounded-3xl border border-emerald-100 p-5 shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Doanh thu dự kiến</span>
-                <span className="text-2xl font-black text-emerald-850 mt-1 block">{formatPrice(stats.totalRevenuePotential)}</span>
-                <span className="text-[10px] text-emerald-600 font-bold block mt-1">Biên lợi nhuận trung bình: {stats.avgMargin.toFixed(1)}%</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Tổng số lượng chuồng</span>
+                <span className="text-2xl font-black text-emerald-850 mt-1 block">{stats.totalStock} <span className="text-xs text-gray-500 font-bold">cái</span></span>
+                <span className="text-[10px] text-emerald-600 font-bold block mt-1">Tổng cộng {stats.totalModels} mẫu thiết kế</span>
               </div>
               <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 shrink-0">
-                <TrendingUp size={20} />
+                <Boxes size={20} />
               </div>
             </div>
 
@@ -590,7 +590,7 @@ export default function CageManagementPage() {
                 <span className="text-[10px] text-red-500 font-bold block mt-1">Cần lập phiếu nhập kho lập tức</span>
               </div>
               <div className="p-3 bg-red-50 border border-red-100 rounded-2xl text-red-500 shrink-0">
-                <Boxes size={20} />
+                <AlertCircle size={20} />
               </div>
             </div>
           </div>
@@ -779,9 +779,8 @@ export default function CageManagementPage() {
                   {/* Conditional columns based on role perspective */}
                   {perspective === 'admin' ? (
                     <>
-                      <th className="py-3.5 px-4 text-right"><SortBtn field="price" label="Giá bán lẻ" /></th>
-                      <th className="py-3.5 px-4 text-right">Giá vốn</th>
-                      <th className="py-3.5 px-4 text-center">Biên Lợi Nhuận</th>
+                      <th className="py-3.5 px-4 text-right">Giá vốn nhập</th>
+                      <th className="py-3.5 px-4 text-right">Tổng giá trị tồn</th>
                     </>
                   ) : (
                     <th className="py-3.5 px-4">Trạng thái Vệ sinh</th>
@@ -837,15 +836,10 @@ export default function CageManagementPage() {
                       {perspective === 'admin' && (
                         <>
                           <td className="py-3.5 px-4 text-right">
-                            <div className="font-black text-gray-900 text-xs">{formatPrice(c.price)}</div>
+                            <div className="font-black text-gray-905 text-xs">{formatPrice(c.costPrice)}</div>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <div className="text-xs font-semibold text-gray-500">{formatPrice(c.costPrice)}</div>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 font-black px-2 py-1 rounded-lg">
-                              +{margin.toFixed(0)}%
-                            </span>
+                            <div className="text-xs font-bold text-indigo-750">{formatPrice(c.stock * c.costPrice)}</div>
                           </td>
                         </>
                       )}
@@ -1020,29 +1014,18 @@ export default function CageManagementPage() {
             {/* Financial Overview (Admin perspective details) */}
             <div className="bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100 rounded-2xl p-4 space-y-3 shadow-sm">
               <div className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1">
-                <DollarSign size={12} /> Báo cáo doanh số & giá trị tồn kho
+                <DollarSign size={12} /> Báo cáo giá trị tài sản tồn kho
               </div>
               
-              <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="grid grid-cols-2 gap-2.5 text-center">
                 <div className="bg-white rounded-xl p-2.5 border border-indigo-100/50">
                   <div className="text-[8px] text-gray-400 font-bold uppercase">Giá vốn nhập</div>
                   <div className="text-xs font-black text-gray-700 mt-1">{formatPrice(selected.costPrice)}</div>
                 </div>
                 <div className="bg-white rounded-xl p-2.5 border border-indigo-150">
-                  <div className="text-[8px] text-indigo-500 font-bold uppercase">Giá bán lẻ</div>
-                  <div className="text-xs font-black text-indigo-900 mt-1">{formatPrice(selected.price)}</div>
+                  <div className="text-[8px] text-indigo-500 font-bold uppercase">Tổng giá trị tồn</div>
+                  <div className="text-xs font-black text-indigo-900 mt-1">{formatPrice(selected.stock * selected.costPrice)}</div>
                 </div>
-                <div className="bg-white rounded-xl p-2.5 border border-emerald-150">
-                  <div className="text-[8px] text-emerald-600 font-bold uppercase">Lợi nhuận</div>
-                  <div className="text-xs font-black text-emerald-700 mt-1">
-                    {selected.price > 0 ? ((selected.price - selected.costPrice) / selected.price * 100).toFixed(0) : 0}%
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center text-xs pt-2 border-t border-indigo-100/50">
-                <span className="text-gray-500 font-medium">Tổng vốn đang tồn ở kho:</span>
-                <span className="font-extrabold text-gray-800">{formatPrice(selected.stock * selected.costPrice)}</span>
               </div>
             </div>
 
@@ -1068,10 +1051,6 @@ export default function CageManagementPage() {
                 <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
                   <span className="text-[9px] text-gray-400 font-bold uppercase block">Chất liệu chính</span>
                   <span className="font-bold text-gray-800 block mt-0.5">{selected.material}</span>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-                  <span className="text-[9px] text-gray-400 font-bold uppercase block">Nhà cung cấp</span>
-                  <span className="font-bold text-gray-800 block mt-0.5 truncate" title={selected.supplierName}>{selected.supplierName || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -1288,10 +1267,6 @@ export default function CageManagementPage() {
                     <label className="text-xs font-bold text-gray-600">Màu sắc sơn phủ</label>
                     <input className="form-input text-xs py-2 rounded-xl" placeholder="Bạc, Đen nhám..." value={fColor} onChange={e => setFColor(e.target.value)} />
                   </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-xs font-bold text-gray-600">Nhà cung cấp / Phân phối</label>
-                    <input className="form-input text-xs py-2 rounded-xl" placeholder="Công ty Inox Hoàng Gia" value={fSupplierName} onChange={e => setFSupplierName(e.target.value)} />
-                  </div>
                 </div>
               </div>
 
@@ -1301,13 +1276,9 @@ export default function CageManagementPage() {
                   <DollarSign size={11} /> Quản trị thương mại & Tồn kho
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="space-y-1 col-span-2">
+                  <div className="space-y-1 col-span-4">
                     <label className="text-xs font-bold text-gray-600">Giá nhập vốn gốc (VND)</label>
                     <input type="number" className="form-input text-xs py-2 rounded-xl" value={fCostPrice} onChange={e => setFCostPrice(Number(e.target.value))} />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <label className="text-xs font-bold text-gray-600">Giá niêm yết bán lẻ (VND) <span className="text-red-500">*</span></label>
-                    <input type="number" required className="form-input text-xs py-2 rounded-xl" value={fPrice} onChange={e => setFPrice(Number(e.target.value))} />
                   </div>
                   <div className="space-y-1 col-span-2">
                     <label className="text-xs font-bold text-gray-600">Tồn kho ban đầu</label>
