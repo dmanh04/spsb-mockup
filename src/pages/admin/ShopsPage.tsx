@@ -764,8 +764,8 @@ export default function ShopsPage() {
                             <td className="px-4 py-3 font-medium text-gray-500">{room.categoryName}</td>
                             <td className="px-4 py-3 text-center font-bold text-gray-800">{room.capacity} thú cưng</td>
                             <td className="px-4 py-3 text-gray-400 font-medium">
-                              <span className="truncate max-w-[140px] block" title={room.equipment.join(', ')}>
-                                {room.equipment.join(', ')}
+                              <span className="truncate max-w-[140px] block" title={(room.equipment || []).join(', ')}>
+                                {(room.equipment || []).join(', ')}
                               </span>
                             </td>
                             <td className="px-4 py-3">

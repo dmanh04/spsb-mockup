@@ -97,7 +97,7 @@ export default function WarehouseReportsPage() {
 
         list.push({
           skuId: item.skuId,
-          skuCode: item.skuCode,
+          skuCode: item.skuCode || '',
           productName: item.productName,
           batchNumber: item.batchNumber,
           expiryDate: item.expiryDate,

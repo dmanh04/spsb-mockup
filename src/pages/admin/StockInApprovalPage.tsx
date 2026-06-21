@@ -129,7 +129,7 @@ export default function StockInApprovalPage() {
       } else {
         updatedInventoryItems.push({
           skuId: item.skuId,
-          skuCode: item.skuCode,
+          skuCode: item.skuCode || '',
           productName: item.productName,
           shopId: 'warehouse',
           quantity: recQty,
@@ -145,7 +145,7 @@ export default function StockInApprovalPage() {
         id: txId,
         type: 'stock_in',
         skuId: item.skuId,
-        skuCode: item.skuCode,
+        skuCode: item.skuCode || '',
         productName: item.productName,
         shopId: 'warehouse',
         quantity: recQty,

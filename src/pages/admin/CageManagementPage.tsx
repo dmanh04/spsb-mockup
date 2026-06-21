@@ -12,6 +12,19 @@ import { formatPrice } from '@/utils/format'
 import { useAuthContext } from '@/auth/AuthContext'
 import type { Cage, CageMaintenanceLog } from '@/types'
 
+interface CageProduct extends Cage {
+  code: string
+  size: 'S' | 'M' | 'L' | 'XL'
+  material: string
+  color: string
+  petTypes: ('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]
+  costPrice: number
+  price: number
+  stock: number
+  minStock: number
+  maintenanceLogs: CageMaintenanceLog[]
+}
+
 type SortField = 'name' | 'code' | 'price' | 'stock' | 'createdAt'
 type SortDir = 'asc' | 'desc'
 type Perspective = 'admin' | 'warehouse'
@@ -28,6 +41,8 @@ const STATUS_MAP: Record<Cage['status'], { label: string; badge: string; dot: st
   active: { label: 'Đang kinh doanh', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   inactive: { label: 'Ngừng kinh doanh', badge: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' },
   maintenance: { label: 'Đang bảo trì', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  available: { label: 'Trống', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  occupied: { label: 'Đang sử dụng', badge: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
 }
 
 const CLEANLINESS_MAP = {
@@ -71,7 +86,7 @@ export default function CageManagementPage() {
   }, [currentUser])
 
   const [perspective, setPerspective] = useState<Perspective>(defaultPerspective)
-  const [cages, setCages] = useState<Cage[]>(CAGE_MOCK_LIST)
+  const [cages, setCages] = useState<CageProduct[]>(CAGE_MOCK_LIST as unknown as CageProduct[])
   const [search, setSearch] = useState('')
   const [filterPet, setFilterPet] = useState<'dog' | 'cat' | 'bird' | 'rabbit' | 'other' | 'all'>('all')
   const [filterSize, setFilterSize] = useState<Cage['size'] | 'all'>('all')
@@ -87,15 +102,15 @@ export default function CageManagementPage() {
 
   // ── Modals & Drawer States ──
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Cage | null>(null)
+  const [editing, setEditing] = useState<CageProduct | null>(null)
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false)
-  const [labelTarget, setLabelTarget] = useState<Cage | null>(null)
+  const [labelTarget, setLabelTarget] = useState<CageProduct | null>(null)
 
   // ── Form State Fields ──
   const [fName, setFName] = useState('')
   const [fCode, setFCode] = useState('')
-  const [fSize, setFSize] = useState<Cage['size']>('M')
+  const [fSize, setFSize] = useState<CageProduct['size']>('M')
   const [fMaterial, setFMaterial] = useState('')
   const [fColor, setFColor] = useState('')
   const [fPetTypes, setFPetTypes] = useState<('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]>(['dog'])
@@ -120,7 +135,7 @@ export default function CageManagementPage() {
 
   // ── Barcode Scanner Simulator State ──
   const [scanCode, setScanCode] = useState('')
-  const [scanResult, setScanResult] = useState<Cage | null>(null)
+  const [scanResult, setScanResult] = useState<CageProduct | null>(null)
   const [scanActionStatus, setScanActionStatus] = useState('')
 
   // ── Maintenance Logger state ──
@@ -283,7 +298,7 @@ export default function CageManagementPage() {
     setIsFormOpen(true)
   }
 
-  function openEdit(cage: Cage) {
+  function openEdit(cage: CageProduct) {
     setEditing(cage)
     setFName(cage.name); setFCode(cage.code); setFSize(cage.size)
     setFMaterial(cage.material); setFColor(cage.color ?? '')
@@ -325,7 +340,7 @@ export default function CageManagementPage() {
       saveCages(updated)
       showToast(`📝 Đã cập nhật chuồng: ${fCode.toUpperCase()}`)
     } else {
-      const newCage: Cage = {
+      const newCage: CageProduct = {
         id: `CAGE-${Date.now()}`, name: fName, code: fCode.toUpperCase(), size: fSize,
         material: fMaterial, color: fColor, petTypes: fPetTypes, costPrice: fCostPrice,
         price: fPrice, stock: fStock, minStock: fMinStock, image: img,
@@ -480,7 +495,7 @@ export default function CageManagementPage() {
   }
 
   // ── Open label printer modal ──
-  function triggerLabelPrint(cage: Cage) {
+  function triggerLabelPrint(cage: CageProduct) {
     setLabelTarget(cage)
     setIsLabelModalOpen(true)
   }
@@ -1252,7 +1267,7 @@ export default function CageManagementPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">Phân cỡ (Size)</label>
-                    <select className="form-input text-xs py-2 rounded-xl" value={fSize} onChange={e => setFSize(e.target.value as Cage['size'])}>
+                    <select className="form-input text-xs py-2 rounded-xl" value={fSize} onChange={e => setFSize(e.target.value as CageProduct['size'])}>
                       <option value="S">S (Thú nhỏ dưới 5kg)</option>
                       <option value="M">M (Thú vừa 5-15kg)</option>
                       <option value="L">L (Thú to 15-30kg)</option>

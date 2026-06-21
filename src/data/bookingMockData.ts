@@ -40,12 +40,12 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     petId: 'PET001', petName: 'Milo', petBreed: 'Poodle',
     serviceId: 'SV001', serviceName: 'Cắt tỉa & Tắm cơ bản',
     shopId: 'SH01', assignedStaffId: 'U020', assignedStaffName: 'Trần Hùng',
-    roomId: 'R001', roomName: 'Grooming 1',
+    roomId: 'R001', roomName: 'Chuồng Grooming 1', cageId: 'R001', cageName: 'Chuồng Grooming 1',
     date: '2026-05-31', startTime: '09:00', endTime: '10:00', duration: 60, price: 150000,
     status: 'confirmed',
     statusHistory: [
       { status: 'pending', changedBy: 'Nguyễn Văn An', changedAt: '2026-05-30 20:15' },
-      { status: 'confirmed', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-31 08:00', note: 'Đã gán Trần Hùng - Grooming 1' },
+      { status: 'confirmed', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-31 08:00', note: 'Đã gán Trần Hùng - Chuồng Grooming 1' },
     ],
     note: '', createdAt: '2026-05-30 20:15',
   },
@@ -55,7 +55,7 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     petId: 'PET002', petName: 'Luna', petBreed: 'Persian Cat',
     serviceId: 'SV002', serviceName: 'Spa Premium',
     shopId: 'SH01', assignedStaffId: 'U021', assignedStaffName: 'Lê Lan',
-    roomId: 'R004', roomName: 'Spa Premium 1',
+    roomId: 'R004', roomName: 'Chuồng Spa Premium 1', cageId: 'R004', cageName: 'Chuồng Spa Premium 1',
     date: '2026-05-31', startTime: '10:30', endTime: '12:30', duration: 120, price: 380000,
     status: 'in_progress',
     statusHistory: [
@@ -88,7 +88,7 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     petId: 'PET001', petName: 'Milo', petBreed: 'Poodle',
     serviceId: 'SV004', serviceName: 'Cắt móng & Vệ sinh tai',
     shopId: 'SH01', assignedStaffId: 'U022', assignedStaffName: 'Nguyễn Mai',
-    roomId: 'R003', roomName: 'Grooming 3',
+    roomId: 'R003', roomName: 'Chuồng Grooming 3', cageId: 'R003', cageName: 'Chuồng Grooming 3',
     date: '2026-05-31', startTime: '14:30', endTime: '15:00', duration: 30, price: 60000,
     status: 'confirmed',
     statusHistory: [
@@ -103,16 +103,16 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     petId: 'PET002', petName: 'Luna', petBreed: 'Persian Cat',
     serviceId: 'SV_BOARDING', serviceName: 'Dịch vụ Khách sạn & Nội trú Thú cưng (Pet Boarding)',
     shopId: 'SH01', assignedStaffId: 'U021', assignedStaffName: 'Lê Lan',
-    roomId: 'R011', roomName: 'Lưu trú Premium VIP Suite',
+    roomId: 'R011', roomName: 'Chuồng Lưu trú Premium VIP Suite', cageId: 'R011', cageName: 'Chuồng Lưu trú Premium VIP Suite',
     date: '2026-05-31', startTime: '08:00', endTime: '18:00', duration: 600, price: 750000,
     status: 'checked_in',
     statusHistory: [
       { status: 'pending', changedBy: 'Trần Thị Bình', changedAt: '2026-05-30 10:00' },
-      { status: 'confirmed', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-30 11:30', note: 'Đã xếp phòng Lưu trú VIP và Lê Lan chăm sóc' },
-      { status: 'checked_in', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-31 08:15', note: ' Luna đã nhận phòng. Mang theo hạt cá hồi riêng, tính tình nhút nhát.' }
+      { status: 'confirmed', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-30 11:30', note: 'Đã xếp Chuồng Lưu trú VIP và Lê Lan chăm sóc' },
+      { status: 'checked_in', changedBy: 'Nguyễn Thị Cẩm', changedAt: '2026-05-31 08:15', note: ' Luna đã nhận chuồng. Mang theo hạt cá hồi riêng, tính tình nhút nhát.' }
     ],
     note: 'Luna cần ăn hạt cá hồi riêng mang theo, bé hơi nhát',
-    checkinNote: 'Luna đã nhận phòng, lông da sạch sẽ, hơi lo lắng khi mới đến.',
+    checkinNote: 'Luna đã nhận chuồng, lông da sạch sẽ, hơi lo lắng khi mới đến.',
     beforePhotoUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&auto=format&fit=crop&q=60',
     boardingDiet: {
       foodType: 'Hạt cá hồi hữu cơ (Chủ mang theo)',
@@ -129,7 +129,7 @@ const INITIAL_BOOKING_MOCK_LIST: Booking[] = [
     petId: 'PET002', petName: 'Luna', petBreed: 'Persian Cat',
     serviceId: 'SV003', serviceName: 'Tắm & Sấy',
     shopId: 'SH01', assignedStaffId: 'U021', assignedStaffName: 'Lê Lan',
-    roomId: 'R006', roomName: 'Tắm cơ bản 1',
+    roomId: 'R006', roomName: 'Chuồng Tắm cơ bản 1', cageId: 'R006', cageName: 'Chuồng Tắm cơ bản 1',
     date: '2026-05-30', startTime: '15:00', endTime: '15:45', duration: 45, price: 100000,
     status: 'paid',
     statusHistory: [

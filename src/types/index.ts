@@ -143,6 +143,8 @@ export interface Booking {
   assignedStaffName?: string
   roomId?: string
   roomName?: string
+  cageId?: string
+  cageName?: string
   date: string
   startTime: string
   endTime: string
@@ -224,20 +226,29 @@ export interface ShiftSwapRequest {
   reviewedAt?: string
 }
 
-// Room
-export interface RoomCategory {
+// Room & Cage
+export interface CageCategory {
   id: string
   name: string
   color: string
   shopId: string
 }
+export type RoomCategory = CageCategory;
+
 export interface MaintenanceLog {
   id: string
-  startedAt: string
+  startedAt?: string
   completedAt?: string
-  requestedBy: string
-  reason: string
+  requestedBy?: string
+  reason?: string
   note?: string
+  
+  // compatibility with CageMaintenanceLog
+  date?: string
+  task?: string
+  technician?: string
+  cost?: number
+  status?: 'completed' | 'pending'
 }
 
 export interface ServingRecord {
@@ -250,18 +261,63 @@ export interface ServingRecord {
   checkoutTime?: string
 }
 
-export interface Room {
+export interface Cage {
   id: string
   name: string
-  categoryId: string
-  categoryName: string
-  shopId: string
-  capacity: number
-  status: 'available' | 'occupied' | 'maintenance' | 'inactive'
-  equipment: string[]
+  categoryId?: string
+  categoryName?: string
+  shopId?: string
+  capacity?: number
+  status: 'available' | 'occupied' | 'maintenance' | 'inactive' | 'active'
+  equipment?: string[]
   maintenanceLogs?: MaintenanceLog[]
   servingHistory?: ServingRecord[]
+
+  // Physical features / Old Cage model features merged
+  code?: string
+  size?: 'S' | 'M' | 'L' | 'XL'
+  material?: string
+  color?: string
+  petTypes?: ('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]
+  costPrice?: number              // Giá vốn nhập
+  price?: number                  // Giá bán lẻ
+  stock: number                   // Required to satisfy CageManagementPage.tsx
+  minStock: number                // Required to satisfy CageManagementPage.tsx
+  barcode?: string
+  image?: string
+  description?: string
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  maxWeight?: number
+  warranty?: number
+  location?: string
+  createdAt?: string
+  lastRestockedAt?: string
+  assemblyStatus?: 'flat_packed' | 'assembled'
+  cleanliness?: 'cleaned' | 'dirty' | 'cleaning'
+  supplierName?: string
+  serialNumbers?: string[]
+  sensorData?: {
+    temp: number
+    humidity: number
+    doorOpen: boolean
+  }
+  occupantName?: string
+  occupiedAt?: string
+  
+  // Compatibility fields for CageManagementPage.tsx and StockInPage.tsx
+  condition?: 'new' | 'good' | 'fair' | 'damaged'
+  serialNumber?: string
+  cageCode?: string
+  currentStock?: number
+
+  // New Inactivation attributes
+  inactivatedAt?: string          // Khi nào ngừng HĐ
+  inactiveReason?: string         // Lý do ngừng HĐ
 }
+
+export type Room = Cage;
 
 // Shop
 export interface Shop {
@@ -327,15 +383,27 @@ export interface InventoryTransaction {
   transferId?: string
   receiptId?: string
   issueId?: string
+  adjustmentReason?: string    // ← BẮT BUỘC khi giảm stock
 }
 
 export type TransferStatus = 'pending' | 'approved' | 'picking' | 'shipped' | 'in_transit' | 'received' | 'completed' | 'rejected' | 'partially_received'
+
+export interface TransferItem {
+  skuId: string
+  skuCode: string
+  productName: string
+  itemType?: 'product' | 'cage'
+  quantity: number
+  receivedQty?: number
+  batchNumber?: string
+  expiryDate?: string
+}
 
 export interface StockTransfer {
   id: string
   fromShopId: string | 'warehouse'
   toShopId: string | 'warehouse'
-  items: { skuId: string; skuCode: string; productName: string; quantity: number; receivedQty?: number; batchNumber?: string; expiryDate?: string }[]
+  items: TransferItem[]
   status: TransferStatus
   requestedBy: string
   requestedAt: string
@@ -356,53 +424,12 @@ export interface CageMaintenanceLog {
   status: 'completed' | 'pending'
 }
 
-export interface Cage {
-  id: string
-  name: string
-  code: string
-  size: 'S' | 'M' | 'L' | 'XL'
-  material: string
-  color?: string
-  petTypes: ('dog' | 'cat' | 'bird' | 'rabbit' | 'other')[]
-  costPrice: number       // Giá vốn nhập
-  price: number           // Giá bán lẻ
-  stock: number
-  minStock: number        // Ngưỡng cảnh báo tồn thấp
-  barcode?: string
-  image: string
-  status: 'active' | 'inactive' | 'maintenance'
-  description?: string
-  // Kích thước chi tiết (cm)
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
-  maxWeight?: number      // Cân nặng thú tối đa (kg)
-  warranty?: number       // Bảo hành (tháng)
-  location?: string       // Vị trí trong kho
-  createdAt: string
-  lastRestockedAt?: string
-  // Real-world operational details
-  assemblyStatus?: 'flat_packed' | 'assembled'
-  condition?: 'new' | 'good' | 'fair' | 'damaged'
-  cleanliness?: 'cleaned' | 'dirty' | 'cleaning'
-  supplierName?: string
-  serialNumbers?: string[]
-  maintenanceLogs?: CageMaintenanceLog[]
-  sensorData?: {
-    temp: number
-    humidity: number
-    doorOpen: boolean
-  }
-  occupantName?: string
-  occupiedAt?: string
-}
-
 // Stock Receipt (Phiếu Nhập Kho - GRN)
 export type StockReceiptStatus = 'draft' | 'pending_approval' | 'price_negotiating' | 'approved' | 'completed' | 'cancelled'
 
 export interface StockReceiptItem {
   skuId: string
-  skuCode: string
+  skuCode?: string
   productName: string
   itemType: 'product' | 'cage'
   orderedQty: number

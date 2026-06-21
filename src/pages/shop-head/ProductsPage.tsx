@@ -142,10 +142,19 @@ export default function ShopHeadProductsPage() {
     const actualDiff = adjustType === 'add' ? qtyVal : -qtyVal
     const currentStock = getStockForSku(sku.id)
     
-    if (adjustType === 'sub' && currentStock < qtyVal) {
-      setSuccessAlert('Tồn kho hiện tại không đủ để giảm!')
-      setTimeout(() => setSuccessAlert(''), 3000)
-      return
+    if (adjustType === 'sub') {
+      if (currentStock < qtyVal) {
+        alert('Tồn kho hiện tại không đủ để giảm!')
+        return
+      }
+      if (!adjustReason || adjustReason === '') {
+        alert('Vui lòng chọn lý do giảm tồn kho bắt buộc!')
+        return
+      }
+      if (!adjustNote.trim()) {
+        alert('Vui lòng nhập ghi chú chi tiết lý do giảm tồn kho bắt buộc!')
+        return
+      }
     }
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16)
@@ -162,7 +171,8 @@ export default function ShopHeadProductsPage() {
       quantity: actualDiff,
       note: `${adjustReason}${adjustNote ? ` · ${adjustNote}` : ''}`,
       createdBy: currentUser?.fullName ?? 'Shop Head',
-      createdAt: nowStr
+      createdAt: nowStr,
+      adjustmentReason: adjustType === 'sub' ? adjustReason : undefined
     }
 
     const updatedTx = [newTx, ...transactionList]
@@ -544,7 +554,7 @@ export default function ShopHeadProductsPage() {
                               <div className="flex justify-end gap-1.5 pt-1.5 border-t border-indigo-100">
                                 <button 
                                   onClick={() => setEditingSkuId(null)}
-                                  className="text-[9px] font-bold text-gray-400 hover:text-gray-600 px-2 py-1 rounded"
+                                  className="text-[9px] font-bold text-gray-400 hover:text-gray-650 px-2 py-1 rounded"
                                 >
                                   Hủy
                                 </button>
@@ -569,7 +579,11 @@ export default function ShopHeadProductsPage() {
                                   <select 
                                     className="form-input text-xs py-1 px-1.5 rounded-lg bg-white" 
                                     value={adjustType}
-                                    onChange={e => setAdjustType(e.target.value as 'add' | 'sub')}
+                                    onChange={e => {
+                                      const nextType = e.target.value as 'add' | 'sub';
+                                      setAdjustType(nextType);
+                                      setAdjustReason(nextType === 'sub' ? '' : 'inventory_correction');
+                                    }}
                                   >
                                     <option value="add">Tăng (+)</option>
                                     <option value="sub">Giảm (-)</option>
@@ -586,35 +600,53 @@ export default function ShopHeadProductsPage() {
                                   />
                                 </div>
                                 <div className="space-y-0.5">
-                                  <label className="text-[9px] font-extrabold text-gray-400 uppercase">Lý do điều chỉnh</label>
-                                  <select 
-                                    className="form-input text-xs py-1 px-1.5 rounded-lg bg-white" 
-                                    value={adjustReason}
-                                    onChange={e => setAdjustReason(e.target.value)}
-                                  >
-                                    <option value="Kiểm kê kho lệch">Lệch kiểm kê</option>
-                                    <option value="Hàng hỏng / Hết hạn">Hỏng / Hết hạn</option>
-                                    <option value="Hao hụt tự nhiên">Hao hụt khác</option>
-                                    <option value="Bổ sung nội bộ nhanh">Bổ sung nhanh</option>
-                                  </select>
+                                  <label className="text-[9px] font-extrabold text-gray-400 uppercase">Lý do {adjustType === 'sub' ? 'giảm (Bắt buộc)' : 'điều chỉnh'}</label>
+                                  {adjustType === 'sub' ? (
+                                    <select 
+                                      className="form-input text-xs py-1 px-1.5 rounded-lg bg-white font-bold text-red-700 border-red-200" 
+                                      value={adjustReason}
+                                      onChange={e => setAdjustReason(e.target.value)}
+                                      required
+                                    >
+                                      <option value="">-- Chọn lý do --</option>
+                                      <option value="damaged_expired">Hỏng / Hết hạn (damaged_expired)</option>
+                                      <option value="inventory_discrepancy">Lệch kiểm kê (inventory_discrepancy)</option>
+                                      <option value="natural_loss">Hao hụt tự nhiên (natural_loss)</option>
+                                      <option value="return_to_supplier">Trả NCC (return_to_supplier)</option>
+                                      <option value="internal_use">Dùng nội bộ (internal_use)</option>
+                                      <option value="lost_theft">Mất / Thất thoát (lost_theft)</option>
+                                      <option value="equipment_damage">Hỏng thiết bị (equipment_damage)</option>
+                                    </select>
+                                  ) : (
+                                    <select 
+                                      className="form-input text-xs py-1 px-1.5 rounded-lg bg-white" 
+                                      value={adjustReason}
+                                      onChange={e => setAdjustReason(e.target.value)}
+                                    >
+                                      <option value="inventory_correction">Lệch kiểm kê (Tăng)</option>
+                                      <option value="quick_restock">Nhập bổ sung nhanh</option>
+                                      <option value="other">Khác</option>
+                                    </select>
+                                  )}
                                 </div>
                               </div>
 
                               <div className="space-y-0.5">
-                                <label className="text-[9px] font-extrabold text-gray-400 uppercase">Ghi chú thêm</label>
+                                <label className="text-[9px] font-extrabold text-gray-400 uppercase">Ghi chú {adjustType === 'sub' ? 'chi tiết lý do (Bắt buộc)' : 'thêm'}</label>
                                 <input 
                                   type="text" 
-                                  placeholder="Ghi cụ thể chi tiết phát sinh..."
-                                  className="form-input text-xs py-1 px-2 rounded-lg bg-white w-full" 
+                                  placeholder={adjustType === 'sub' ? "BẮT BUỘC nhập lý do giảm chi tiết..." : "Ghi cụ thể chi tiết phát sinh..."}
+                                  className={`form-input text-xs py-1 px-2 rounded-lg bg-white w-full ${adjustType === 'sub' ? 'border-red-200' : ''}`} 
                                   value={adjustNote}
                                   onChange={e => setAdjustNote(e.target.value)}
+                                  required={adjustType === 'sub'}
                                 />
                               </div>
 
                               <div className="flex justify-end gap-1.5 pt-1.5 border-t border-emerald-200/50">
                                 <button 
                                   onClick={() => setAdjustingSkuId(null)}
-                                  className="text-[9px] font-bold text-gray-400 hover:text-gray-650 px-2 py-1 rounded"
+                                  className="text-[9px] font-bold text-gray-400 hover:text-gray-655 px-2 py-1 rounded"
                                 >
                                   Hủy
                                 </button>

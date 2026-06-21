@@ -87,7 +87,7 @@ export default function StockReceiptListPage() {
       } else {
         updatedInventory.push({
           skuId: item.skuId,
-          skuCode: item.skuCode,
+          skuCode: item.skuCode || '',
           productName: item.productName,
           shopId: 'warehouse',
           quantity: quantityToAdd,
@@ -101,7 +101,7 @@ export default function StockReceiptListPage() {
         id: txId,
         type: 'stock_in',
         skuId: item.skuId,
-        skuCode: item.skuCode,
+        skuCode: item.skuCode || '',
         productName: item.productName,
         shopId: 'warehouse',
         quantity: quantityToAdd,

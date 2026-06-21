@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Plus, Wrench, CheckCircle, X, ShieldAlert, AlertTriangle, Settings, Calendar, History, Info, ChevronRight, Edit3, ArrowRight } from 'lucide-react'
+import { Plus, Wrench, CheckCircle, X, ShieldAlert, AlertTriangle, Settings, Calendar, History, Info, ChevronRight, Edit3, ArrowRight, Trash2 } from 'lucide-react'
 import { ROOM_MOCK_LIST, ROOM_CATEGORIES, saveRooms } from '@/data/roomMockData'
 import { BOOKING_MOCK_LIST, saveBookings } from '@/data/bookingMockData'
 import { useAuthContext } from '@/auth/AuthContext'
 import type { Room } from '@/types'
 
 const STATUS_LABELS: Record<string, string> = {
-  available: 'Trống', occupied: 'Đang dùng', maintenance: 'Bảo trì', inactive: 'Ngừng hoạt động',
+  available: 'Trống', occupied: 'Đang dùng', maintenance: 'Bảo trì', inactive: 'Đã loại bỏ',
 }
 const STATUS_COLORS: Record<string, string> = {
   available: 'badge-green', occupied: 'badge-orange', maintenance: 'badge-gray', inactive: 'badge-red',
@@ -31,6 +31,11 @@ export default function RoomsPage() {
 
   // Maintenance confirmation state
   const [maintenanceTarget, setMaintenanceTarget] = useState<Room | null>(null)
+
+  // Inactivation states
+  const [inactiveTarget, setInactiveTarget] = useState<Room | null>(null)
+  const [inactiveReasonVal, setInactiveReasonVal] = useState('')
+  const [inactiveNoteVal, setInactiveNoteVal] = useState('')
 
   // Room Detail Drawer states
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
@@ -58,7 +63,7 @@ export default function RoomsPage() {
     .filter(r => !selectedCat || r.categoryId === selectedCat)
 
   const available = rooms.filter(r => r.shopId === shopId && r.status === 'available').length
-  const total = rooms.filter(r => r.shopId === shopId).length
+  const total = rooms.filter(r => r.shopId === shopId && r.status !== 'inactive').length
 
   // Check if room has upcoming bookings that are confirmed or in progress
   const getUpcomingBookings = (roomId: string) => {
@@ -72,14 +77,14 @@ export default function RoomsPage() {
 
   // Get rooms available for reallocation
   const getReallocateRoomOptions = (categoryId: string, excludeRoomId: string) => {
-    return rooms.filter(r => r.shopId === shopId && r.categoryId === categoryId && r.id !== excludeRoomId && r.status !== 'maintenance')
+    return rooms.filter(r => r.shopId === shopId && r.categoryId === categoryId && r.id !== excludeRoomId && r.status !== 'maintenance' && r.status !== 'inactive')
   }
 
   function handleSelectRoom(room: Room) {
     setSelectedRoom(room)
     setEditName(room.name)
-    setEditCapacity(room.capacity)
-    setEditCatId(room.categoryId)
+    setEditCapacity(room.capacity ?? 1)
+    setEditCatId(room.categoryId ?? '')
     setEditEquipment(room.equipment?.join(', ') ?? '')
     setEditStatus(room.status)
     setActiveTab('config')
@@ -87,6 +92,7 @@ export default function RoomsPage() {
     setReallocateTargetRoomId('')
     setShowAddPanel(false)
     setMaintenanceTarget(null)
+    setInactiveTarget(null)
   }
 
   function handleSaveRoomDetail(e: React.FormEvent) {
@@ -96,16 +102,34 @@ export default function RoomsPage() {
     const selectedCategory = ROOM_CATEGORIES.find(c => c.id === editCatId)
     if (!selectedCategory) return
 
+    // If changing to inactive, validate deactivation inputs
+    if (editStatus === 'inactive' && selectedRoom.status !== 'inactive') {
+      if (selectedRoom.status === 'occupied') {
+        alert(`Chuồng "${selectedRoom.name}" đang có thú cưng sử dụng, không thể loại bỏ lúc này. Vui lòng đợi hoàn thành check-out.`);
+        return;
+      }
+      const activeBookings = getUpcomingBookings(selectedRoom.id)
+      if (activeBookings.length > 0) {
+        alert(`Chuồng "${selectedRoom.name}" đang có lịch hẹn đặt trước sắp tới. Vui lòng đổi chuồng (reallocate) các lịch hẹn này trước khi loại bỏ chuồng.`);
+        return;
+      }
+      if (!inactiveReasonVal || !inactiveNoteVal) {
+        alert(`Vui lòng chọn lý do và nhập mô tả chi tiết để loại bỏ chuồng.`);
+        return;
+      }
+    }
+
     const updated = rooms.map(r => {
       if (r.id === selectedRoom.id) {
         const isStatusChanging = r.status !== editStatus
         let newLogs = r.maintenanceLogs ? [...r.maintenanceLogs] : []
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16)
         
         // If status changed to maintenance
         if (isStatusChanging && editStatus === 'maintenance') {
           newLogs.push({
             id: `M-${Date.now()}`,
-            startedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            startedAt: nowStr,
             requestedBy: currentUser?.fullName ?? 'Shop Head',
             reason: maintenanceReason || 'Khử trùng & vệ sinh định kỳ',
             note: maintenanceNote || 'Đã ghi nhận yêu cầu bảo trì.'
@@ -115,9 +139,54 @@ export default function RoomsPage() {
         else if (isStatusChanging && r.status === 'maintenance' && editStatus === 'available') {
           newLogs = newLogs.map(log => !log.completedAt ? {
             ...log,
-            completedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            note: (log.note ?? '') + ' -> Bảo trì hoàn tất. Phòng sẵn sàng hoạt động.'
+            completedAt: nowStr,
+            note: (log.note ?? '') + ' -> Bảo trì hoàn tất. Chuồng sẵn sàng hoạt động.'
           } : log)
+        }
+        // If status changed to inactive
+        else if (isStatusChanging && editStatus === 'inactive') {
+          const reasonText = {
+            severe_damage: 'Hỏng nặng không sửa được',
+            end_of_life: 'Hết thời hạn sử dụng',
+            no_longer_needed: 'Không còn nhu cầu',
+            return_to_warehouse: 'Trả về kho tổng',
+          }[inactiveReasonVal as 'severe_damage' | 'end_of_life' | 'no_longer_needed' | 'return_to_warehouse'] || inactiveReasonVal;
+
+          newLogs.push({
+            id: `M-${Date.now()}`,
+            startedAt: nowStr,
+            completedAt: nowStr,
+            requestedBy: currentUser?.fullName ?? 'Shop Head',
+            reason: `Loại bỏ chuồng: ${reasonText}`,
+            note: inactiveNoteVal || 'Yêu cầu ngừng hoạt động.'
+          })
+
+          return {
+            ...r,
+            name: editName,
+            categoryId: editCatId,
+            categoryName: selectedCategory.name,
+            capacity: editCapacity,
+            status: editStatus,
+            inactivatedAt: nowStr,
+            inactiveReason: `${reasonText} - Ghi chú: ${inactiveNoteVal}`,
+            equipment: editEquipment ? editEquipment.split(',').map(eq => eq.trim()).filter(Boolean) : [],
+            maintenanceLogs: newLogs
+          }
+        }
+        // If status changed from inactive to available
+        else if (isStatusChanging && r.status === 'inactive' && editStatus === 'available') {
+          return {
+            ...r,
+            name: editName,
+            categoryId: editCatId,
+            categoryName: selectedCategory.name,
+            capacity: editCapacity,
+            status: editStatus,
+            inactivatedAt: undefined,
+            inactiveReason: undefined,
+            equipment: editEquipment ? editEquipment.split(',').map(eq => eq.trim()).filter(Boolean) : []
+          }
         }
 
         return {
@@ -143,7 +212,7 @@ export default function RoomsPage() {
       setSelectedRoom(freshRoom)
     }
 
-    setSuccessAlert(`Đã cập nhật thông tin phòng "${editName}" thành công!`)
+    setSuccessAlert(`Đã cập nhật thông tin chuồng "${editName}" thành công!`)
     setTimeout(() => setSuccessAlert(''), 3000)
   }
 
@@ -161,9 +230,11 @@ export default function RoomsPage() {
           ...b,
           roomId: targetRoom.id,
           roomName: targetRoom.name,
+          cageId: targetRoom.id,
+          cageName: targetRoom.name,
           statusHistory: [
             ...(b.statusHistory || []),
-            { status: b.status, changedBy: currentUser?.fullName ?? 'Shop Head', changedAt: nowStr, note: `Tái điều phối nhanh từ phòng "${selectedRoom.name}" sang "${targetRoom.name}"` }
+            { status: b.status, changedBy: currentUser?.fullName ?? 'Shop Head', changedAt: nowStr, note: `Tái điều phối nhanh từ chuồng "${selectedRoom.name}" sang "${targetRoom.name}"` }
           ]
         }
       }
@@ -198,12 +269,13 @@ export default function RoomsPage() {
 
     setReallocateBookingId(null)
     setReallocateTargetRoomId('')
-    setSuccessAlert('Đã chuyển đổi phòng chuồng nhanh thành công!')
+    setSuccessAlert('Đã chuyển đổi chuồng nhanh thành công!')
     setTimeout(() => setSuccessAlert(''), 3000)
   }
 
   function handleToggleMaintenance(room: Room) {
     setSelectedRoom(null) // Close detail drawer to avoid clash
+    setInactiveTarget(null)
     if (room.status === 'maintenance') {
       // Bring back to available
       const updated = rooms.map(r => {
@@ -212,7 +284,7 @@ export default function RoomsPage() {
           newLogs = newLogs.map(log => !log.completedAt ? {
             ...log,
             completedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            note: (log.note ?? '') + ' -> Bảo trì hoàn tất. Phòng sẵn sàng hoạt động.'
+            note: (log.note ?? '') + ' -> Bảo trì hoàn tất. Chuồng sẵn sàng hoạt động.'
           } : log)
           return { ...r, status: 'available' as const, maintenanceLogs: newLogs }
         }
@@ -220,7 +292,7 @@ export default function RoomsPage() {
       })
       setRooms(updated)
       saveRooms(updated)
-      setSuccessAlert(`Phòng "${room.name}" đã hoạt động trở lại!`)
+      setSuccessAlert(`Chuồng "${room.name}" đã hoạt động trở lại!`)
       setTimeout(() => setSuccessAlert(''), 3000)
     } else {
       // Check upcoming bookings before putting to maintenance
@@ -245,7 +317,7 @@ export default function RoomsPage() {
         })
         setRooms(updated)
         saveRooms(updated)
-        setSuccessAlert(`Phòng "${room.name}" đã bắt đầu quy trình bảo trì!`)
+        setSuccessAlert(`Chuồng "${room.name}" đã bắt đầu quy trình bảo trì!`)
         setTimeout(() => setSuccessAlert(''), 3000)
       }
     }
@@ -270,7 +342,86 @@ export default function RoomsPage() {
     setRooms(updated)
     saveRooms(updated)
     setMaintenanceTarget(null)
-    setSuccessAlert(`Đã chuyển phòng "${maintenanceTarget.name}" sang trạng thái bảo trì!`)
+    setSuccessAlert(`Đã chuyển chuồng "${maintenanceTarget.name}" sang trạng thái bảo trì!`)
+    setTimeout(() => setSuccessAlert(''), 3000)
+  }
+
+  function handleInitiateInactivate(room: Room) {
+    setSelectedRoom(null)
+    setMaintenanceTarget(null)
+    
+    if (room.status === 'occupied') {
+      alert(`Chuồng "${room.name}" đang có thú cưng sử dụng, không thể loại bỏ lúc này. Vui lòng đợi hoàn thành check-out.`);
+      return;
+    }
+    
+    const activeBookings = getUpcomingBookings(room.id)
+    if (activeBookings.length > 0) {
+      alert(`Chuồng "${room.name}" đang có lịch hẹn đặt trước sắp tới. Vui lòng đổi chuồng (reallocate) các lịch hẹn này trước khi loại bỏ chuồng.`);
+      return;
+    }
+    
+    setInactiveTarget(room)
+    setInactiveReasonVal('')
+    setInactiveNoteVal('')
+  }
+
+  function handleExecuteInactivate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!inactiveTarget || !inactiveReasonVal || !inactiveNoteVal) return
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16)
+    const reasonText = {
+      severe_damage: 'Hỏng nặng không sửa được',
+      end_of_life: 'Hết thời hạn sử dụng',
+      no_longer_needed: 'Không còn nhu cầu',
+      return_to_warehouse: 'Trả về kho tổng',
+    }[inactiveReasonVal as 'severe_damage' | 'end_of_life' | 'no_longer_needed' | 'return_to_warehouse'] || inactiveReasonVal;
+
+    const updated = rooms.map(r => {
+      if (r.id === inactiveTarget.id) {
+        let newLogs = r.maintenanceLogs ? [...r.maintenanceLogs] : []
+        newLogs.push({
+          id: `M-${Date.now()}`,
+          startedAt: nowStr,
+          completedAt: nowStr,
+          requestedBy: currentUser?.fullName ?? 'Shop Head',
+          reason: `Loại bỏ chuồng: ${reasonText}`,
+          note: inactiveNoteVal
+        })
+        return {
+          ...r,
+          status: 'inactive' as const,
+          inactivatedAt: nowStr,
+          inactiveReason: `${reasonText} - Ghi chú: ${inactiveNoteVal}`,
+          maintenanceLogs: newLogs
+        }
+      }
+      return r
+    })
+
+    setRooms(updated)
+    saveRooms(updated)
+    setInactiveTarget(null)
+    setSuccessAlert(`Đã loại bỏ chuồng "${inactiveTarget.name}" thành công!`)
+    setTimeout(() => setSuccessAlert(''), 3000)
+  }
+
+  function handleReactivate(room: Room) {
+    const updated = rooms.map(r => {
+      if (r.id === room.id) {
+        return {
+          ...r,
+          status: 'available' as const,
+          inactivatedAt: undefined,
+          inactiveReason: undefined
+        }
+      }
+      return r
+    })
+    setRooms(updated)
+    saveRooms(updated)
+    setSuccessAlert(`Đã kích hoạt lại chuồng "${room.name}" thành công!`)
     setTimeout(() => setSuccessAlert(''), 3000)
   }
 
@@ -289,7 +440,9 @@ export default function RoomsPage() {
       shopId: shopId,
       capacity: parseInt(newRoomCapacity) || 1,
       status: 'available',
-      equipment: newRoomEquipment ? newRoomEquipment.split(',').map(eq => eq.trim()).filter(Boolean) : []
+      equipment: newRoomEquipment ? newRoomEquipment.split(',').map(eq => eq.trim()).filter(Boolean) : [],
+      stock: 1,
+      minStock: 0
     }
 
     const updated = [...rooms, newRoom]
@@ -302,6 +455,8 @@ export default function RoomsPage() {
     setNewRoomCatId('')
     setNewRoomEquipment('')
     setShowAddPanel(false)
+    setSuccessAlert(`Đã tạo chuồng mới "${newRoomName}" thành công!`)
+    setTimeout(() => setSuccessAlert(''), 3000)
   }
 
   return (
@@ -317,14 +472,14 @@ export default function RoomsPage() {
         )}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Quản lý phòng</h1>
-            <p className="text-sm text-gray-500">{available}/{total} phòng đang trống ở {shopId}</p>
+            <h1 className="text-xl font-bold text-gray-900">Quản lý Chuồng dịch vụ</h1>
+            <p className="text-sm text-gray-500">{available}/{total} chuồng đang trống ở chi nhánh {shopId}</p>
           </div>
           <button 
-            onClick={() => { setShowAddPanel(true); setMaintenanceTarget(null) }} 
+            onClick={() => { setShowAddPanel(true); setMaintenanceTarget(null); setInactiveTarget(null); }} 
             className="btn-primary flex items-center gap-1.5 shadow-md shadow-indigo-200"
           >
-            <Plus size={15} /> Thêm phòng mới
+            <Plus size={15} /> Thêm chuồng mới
           </button>
         </div>
 
@@ -387,8 +542,10 @@ export default function RoomsPage() {
                     : room.status === 'occupied' 
                       ? 'border-orange-200 bg-orange-50/10' 
                       : room.status === 'maintenance' 
-                        ? 'border-gray-250 bg-gray-50/50 opacity-80' 
-                        : 'border-gray-150 hover:border-indigo-150'
+                        ? 'border-gray-250 bg-gray-50/50 opacity-80'
+                        : room.status === 'inactive'
+                          ? 'border-red-200 bg-red-50/5 opacity-70'
+                          : 'border-gray-150 hover:border-indigo-150'
                 }`}
               >
                 <div>
@@ -409,6 +566,15 @@ export default function RoomsPage() {
                     Sức chứa tối đa: <span className="font-bold text-gray-800">{room.capacity} thú cưng</span>
                   </div>
 
+                  {/* Physical attributes */}
+                  {(room.size || room.material || room.serialNumber) && (
+                    <div className="text-[11px] font-semibold text-gray-450 mb-3.5 grid grid-cols-2 gap-y-1">
+                      {room.size && <div>Kích thước: <span className="text-gray-700 font-bold">{room.size}</span></div>}
+                      {room.material && <div>Chất liệu: <span className="text-gray-700 font-bold">{room.material}</span></div>}
+                      {room.serialNumber && <div className="col-span-2">Mã Serial: <span className="text-gray-750 font-mono font-bold">{room.serialNumber}</span></div>}
+                    </div>
+                  )}
+
                   {/* Equipment badges */}
                   {room.equipment && room.equipment.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-4">
@@ -424,23 +590,48 @@ export default function RoomsPage() {
                 {/* Direct Action Controls */}
                 <div className="border-t border-gray-100 pt-3 flex gap-2" onClick={e => e.stopPropagation()}>
                   {room.status === 'maintenance' ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleToggleMaintenance(room); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-100 transition-colors"
-                    >
-                      <CheckCircle size={13} /> Sẵn sàng hoạt động
-                    </button>
+                    <>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleToggleMaintenance(room); }}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-100 transition-colors"
+                      >
+                        <CheckCircle size={13} /> Sẵn sàng hoạt động
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleInitiateInactivate(room); }}
+                        className="px-3 flex items-center justify-center py-2 text-xs font-bold bg-red-50 text-red-750 border border-red-200 rounded-2xl hover:bg-red-100 transition-colors"
+                        title="Loại bỏ chuồng"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
                   ) : room.status === 'available' ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleToggleMaintenance(room); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl hover:bg-amber-100 transition-colors"
-                    >
-                      <Wrench size={13} /> Yêu cầu bảo trì
-                    </button>
+                    <>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleToggleMaintenance(room); }}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl hover:bg-amber-100 transition-colors"
+                      >
+                        <Wrench size={13} /> Yêu cầu bảo trì
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleInitiateInactivate(room); }}
+                        className="px-3 flex items-center justify-center py-2 text-xs font-bold bg-red-50 text-red-750 border border-red-200 rounded-2xl hover:bg-red-100 transition-colors"
+                        title="Loại bỏ chuồng"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
                   ) : room.status === 'occupied' ? (
                     <div className="w-full text-center py-1.5 bg-orange-50 border border-orange-100 text-orange-700 rounded-2xl text-[10px] font-extrabold flex items-center justify-center gap-1.5">
-                      <AlertTriangle size={11} /> Phòng đang phục vụ lịch hẹn
+                      <AlertTriangle size={11} /> Đang phục vụ lịch hẹn
                     </div>
+                  ) : room.status === 'inactive' ? (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleReactivate(room); }}
+                      className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl hover:bg-indigo-100 transition-colors"
+                    >
+                      <CheckCircle size={13} /> Kích hoạt lại
+                    </button>
                   ) : null}
                 </div>
               </div>
@@ -451,7 +642,7 @@ export default function RoomsPage() {
         {shopRooms.length === 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center text-gray-400">
             <div className="text-4xl mb-3">🏢</div>
-            <p className="text-sm font-bold">Không tìm thấy phòng dịch vụ nào</p>
+            <p className="text-sm font-bold">Không tìm thấy chuồng dịch vụ nào</p>
           </div>
         )}
       </div>
@@ -462,7 +653,7 @@ export default function RoomsPage() {
           <form onSubmit={handleAddRoom} className="space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h2 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
-                🏢 Thêm phòng mới
+                🏢 Thêm chuồng mới
               </h2>
               <button 
                 type="button" 
@@ -475,11 +666,11 @@ export default function RoomsPage() {
 
             <div className="space-y-3 pt-2">
               <div className="space-y-1">
-                <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">Tên phòng</label>
+                <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">Tên chuồng</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="Ví dụ: Spa VIP 3" 
+                  placeholder="Ví dụ: Chuồng Spa VIP 3" 
                   className="form-input text-sm rounded-xl py-2 px-3 focus:border-indigo-500"
                   value={newRoomName}
                   onChange={e => setNewRoomName(e.target.value)}
@@ -487,7 +678,7 @@ export default function RoomsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">Danh mục phòng</label>
+                <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">Danh mục chuồng</label>
                 <select 
                   required
                   className="form-input text-sm rounded-xl py-2 px-3 focus:border-indigo-500"
@@ -516,7 +707,7 @@ export default function RoomsPage() {
               <div className="space-y-1">
                 <label className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">Thiết bị kèm theo</label>
                 <textarea 
-                  placeholder="Cách nhau bằng dấu phẩy. Ví dụ: Máy massage, Bồn tắm massage..." 
+                  placeholder="Cách nhau bằng dấu phẩy. Ví dụ: Camera giám sát, Đệm Memory Foam..." 
                   className="form-input text-sm rounded-xl py-2 px-3 min-h-16"
                   value={newRoomEquipment}
                   onChange={e => setNewRoomEquipment(e.target.value)}
@@ -549,7 +740,7 @@ export default function RoomsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-amber-200 pb-3">
               <h2 className="text-sm font-black text-amber-800 flex items-center gap-1.5">
-                <ShieldAlert size={16} /> Cảnh báo Bảo trì phòng
+                <ShieldAlert size={16} /> Cảnh báo bảo trì chuồng
               </h2>
               <button 
                 type="button" 
@@ -562,7 +753,7 @@ export default function RoomsPage() {
 
             <div className="space-y-3 pt-2 text-xs text-amber-850">
               <p className="font-semibold leading-relaxed">
-                Phòng <strong className="text-amber-900 text-sm font-black">"{maintenanceTarget.name}"</strong> hiện đang được gán cho các lịch hẹn sắp tới.
+                Chuồng <strong className="text-amber-900 text-sm font-black">"{maintenanceTarget.name}"</strong> hiện đang được gán cho các lịch hẹn sắp tới.
               </p>
               
               <div className="bg-amber-100/70 rounded-2xl p-3 border border-amber-200/50 space-y-2">
@@ -579,7 +770,7 @@ export default function RoomsPage() {
               </div>
 
               <p className="font-medium">
-                Vui lòng xác nhận để đưa phòng vào bảo trì. Trạng thái phòng sẽ được cập nhật và bạn cần điều chuyển thủ công những lịch hẹn trên sang phòng khác trong phần chi tiết lịch hẹn.
+                Vui lòng xác nhận để đưa chuồng vào bảo trì. Bạn cần điều chuyển (reallocate) những lịch hẹn trên sang chuồng khác.
               </p>
             </div>
 
@@ -594,10 +785,79 @@ export default function RoomsPage() {
                 onClick={() => setMaintenanceTarget(null)}
                 className="w-full btn-secondary bg-white text-gray-700 border-gray-250 py-2 text-xs font-bold justify-center rounded-2xl"
               >
-                Hủy bỏ & Reallocate trước
+                Hủy bỏ & điều phối trước
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- SLIDING RIGHT DRAWER FOR INACTIVATION REASON --- */}
+      {inactiveTarget && (
+        <div className="w-full md:w-80 shrink-0 bg-red-50/95 border border-red-200 rounded-3xl p-6 shadow-lg animate-slideIn flex flex-col justify-between">
+          <form onSubmit={handleExecuteInactivate} className="space-y-4">
+            <div className="flex items-center justify-between border-b border-red-250 pb-3">
+              <h2 className="text-sm font-black text-red-800 flex items-center gap-1.5">
+                <ShieldAlert size={16} /> Loại bỏ chuồng (Inactive)
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => setInactiveTarget(null)} 
+                className="text-red-500 hover:text-red-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-2 text-xs text-red-850">
+              <p className="font-semibold leading-relaxed">
+                Bạn đang loại bỏ chuồng <strong className="text-red-900 text-sm font-black">"{inactiveTarget.name}"</strong> khỏi hoạt động.
+              </p>
+              
+              <div className="space-y-1">
+                <label className="text-xs font-extrabold text-red-800 uppercase tracking-wide">Lý do loại bỏ (BẮT BUỘC)</label>
+                <select 
+                  required
+                  className="form-input text-xs rounded-xl py-2 px-3 border-red-200 bg-white text-red-900 focus:border-red-500 w-full"
+                  value={inactiveReasonVal}
+                  onChange={e => setInactiveReasonVal(e.target.value)}
+                >
+                  <option value="">-- Chọn lý do --</option>
+                  <option value="severe_damage">Hỏng nặng không sửa được</option>
+                  <option value="end_of_life">Hết thời hạn sử dụng</option>
+                  <option value="no_longer_needed">Không còn nhu cầu</option>
+                  <option value="return_to_warehouse">Trả về kho tổng</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-extrabold text-red-800 uppercase tracking-wide">Mô tả chi tiết (BẮT BUỘC)</label>
+                <textarea 
+                  placeholder="Ghi cụ thể lý do (ví dụ: gỉ sét bản lề không thể thay thế)..." 
+                  className="form-input text-xs rounded-xl py-2 px-3 border-red-200 bg-white text-red-900 focus:border-red-500 w-full min-h-16"
+                  value={inactiveNoteVal}
+                  onChange={e => setInactiveNoteVal(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-3">
+              <button 
+                type="submit" 
+                className="flex-1 bg-red-600 hover:bg-red-750 text-white py-2 text-xs font-bold justify-center rounded-2xl transition-all"
+              >
+                Xác nhận loại bỏ
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setInactiveTarget(null)}
+                className="btn-secondary bg-white text-gray-700 border-gray-250 py-2 text-xs font-bold justify-center rounded-2xl"
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -638,7 +898,7 @@ export default function RoomsPage() {
                 onClick={() => setActiveTab('schedule')}
                 className={`flex-1 pb-2 flex items-center justify-center gap-1 border-b-2 transition-all ${activeTab === 'schedule' ? 'text-indigo-600 border-indigo-650' : 'border-transparent hover:text-gray-600'}`}
               >
-                <Calendar size={12} /> Lịch sắp tới ({getUpcomingBookings(selectedRoom.id).length})
+                <Calendar size={12} /> Lịch hẹn ({getUpcomingBookings(selectedRoom.id).length})
               </button>
               <button 
                 onClick={() => setActiveTab('history')}
@@ -655,7 +915,7 @@ export default function RoomsPage() {
               {activeTab === 'config' && (
                 <form onSubmit={handleSaveRoomDetail} className="space-y-3.5">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Tên phòng / Suite</label>
+                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Tên chuồng</label>
                     <input 
                       type="text" 
                       required 
@@ -694,12 +954,18 @@ export default function RoomsPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Trạng thái phòng</label>
+                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Trạng thái chuồng</label>
                     <select 
                       required 
                       className="form-input text-xs py-1.5 rounded-lg w-full" 
                       value={editStatus} 
-                      onChange={e => setEditStatus(e.target.value as Room['status'])}
+                      onChange={e => {
+                        setEditStatus(e.target.value as Room['status']);
+                        if (e.target.value !== 'inactive') {
+                          setInactiveReasonVal('');
+                          setInactiveNoteVal('');
+                        }
+                      }}
                     >
                       {Object.entries(STATUS_LABELS).map(([status, label]) => (
                         <option key={status} value={status}>{label}</option>
@@ -727,10 +993,52 @@ export default function RoomsPage() {
                             className="form-input text-[11px] py-1 bg-white border-amber-200 text-amber-900" 
                             value={maintenanceNote} 
                             onChange={e => setMaintenanceNote(e.target.value)} 
-                            placeholder="Sửa bóng đèn, kiểm tra lỏng ốc..." 
+                            placeholder="Sửa khóa cửa chuồng, khử trùng định kỳ..." 
                           />
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {editStatus === 'inactive' && selectedRoom.status !== 'inactive' && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 space-y-2.5">
+                      <span className="text-[10px] font-black text-red-800 uppercase tracking-wider block flex items-center gap-1"><AlertTriangle size={12} /> Nhật ký loại bỏ chuồng</span>
+                      <div className="space-y-2">
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-extrabold text-red-705 uppercase tracking-wide block">Lý do loại bỏ (BẮT BUỘC)</label>
+                          <select 
+                            required
+                            className="form-input text-[11px] py-1 bg-white border-red-250 text-red-900 focus:border-red-500 w-full"
+                            value={inactiveReasonVal}
+                            onChange={e => setInactiveReasonVal(e.target.value)}
+                          >
+                            <option value="">-- Chọn lý do --</option>
+                            <option value="severe_damage">Hỏng nặng không sửa được</option>
+                            <option value="end_of_life">Hết thời hạn sử dụng</option>
+                            <option value="no_longer_needed">Không còn nhu cầu</option>
+                            <option value="return_to_warehouse">Trả về kho tổng</option>
+                          </select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-extrabold text-red-705 uppercase tracking-wide block">Mô tả chi tiết (BẮT BUỘC)</label>
+                          <input 
+                            type="text" 
+                            required
+                            className="form-input text-[11px] py-1 bg-white border-red-250 text-red-900" 
+                            value={inactiveNoteVal} 
+                            onChange={e => setInactiveNoteVal(e.target.value)} 
+                            placeholder="Mô tả cụ thể trạng thái hư hại..." 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedRoom.status === 'inactive' && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 space-y-1">
+                      <span className="text-[10px] font-black text-red-800 uppercase tracking-wider block">Thông tin loại bỏ:</span>
+                      <p className="text-[11px] text-red-900 font-bold">Thời gian: {selectedRoom.inactivatedAt}</p>
+                      <p className="text-[11px] text-red-800 font-medium leading-normal">Chi tiết lý do: {selectedRoom.inactiveReason}</p>
                     </div>
                   )}
 
@@ -747,7 +1055,7 @@ export default function RoomsPage() {
                     type="submit" 
                     className="w-full btn-primary py-2.5 text-xs font-black justify-center rounded-2xl shadow-md flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
-                    <CheckCircle size={13} /> Lưu thông tin phòng
+                    <CheckCircle size={13} /> Lưu thông tin chuồng
                   </button>
                 </form>
               )}
@@ -766,7 +1074,7 @@ export default function RoomsPage() {
                     <div className="space-y-2.5">
                       {getUpcomingBookings(selectedRoom.id).map(b => {
                         const isReallocatingThis = reallocateBookingId === b.id
-                        const reallocOptions = getReallocateRoomOptions(selectedRoom.categoryId, selectedRoom.id)
+                        const reallocOptions = getReallocateRoomOptions(selectedRoom.categoryId || '', selectedRoom.id)
                         
                         return (
                           <div key={b.id} className="bg-slate-50 border border-slate-150/60 rounded-2xl p-3 space-y-2 shadow-sm">
@@ -784,14 +1092,14 @@ export default function RoomsPage() {
                             {/* Reallocation Workflow inline in schedule tab */}
                             {isReallocatingThis ? (
                               <div className="bg-indigo-50 border border-indigo-150 rounded-xl p-2.5 space-y-2 mt-2">
-                                <span className="text-[9px] font-black text-indigo-950 uppercase block">🔄 Chọn chuồng/phòng thay thế:</span>
+                                <span className="text-[9px] font-black text-indigo-950 uppercase block">🔄 Chọn chuồng thay thế:</span>
                                 <div className="flex gap-2">
                                   <select 
                                     className="form-input text-[11px] py-1 bg-white border-indigo-200 flex-1"
                                     value={reallocateTargetRoomId}
                                     onChange={e => setReallocateTargetRoomId(e.target.value)}
                                   >
-                                    <option value="">-- Chọn phòng trống --</option>
+                                    <option value="">-- Chọn chuồng trống --</option>
                                     {reallocOptions.map(r => (
                                       <option key={r.id} value={r.id}>{r.name} ({STATUS_LABELS[r.status]})</option>
                                     ))}
@@ -817,7 +1125,7 @@ export default function RoomsPage() {
                                   onClick={() => { setReallocateBookingId(b.id); setReallocateTargetRoomId(''); }}
                                   className="text-[9px] font-black text-indigo-650 hover:text-indigo-800 bg-white border border-indigo-200 px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-0.5 transition-colors"
                                 >
-                                  <ArrowRight size={10} /> Đổi phòng nhanh
+                                  <ArrowRight size={10} /> Đổi chuồng nhanh
                                 </button>
                               </div>
                             )}
@@ -835,7 +1143,7 @@ export default function RoomsPage() {
                   
                   {/* Maintenance Logs */}
                   <div className="space-y-2">
-                    <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider block">🛠️ Nhật ký bảo trì phòng</span>
+                    <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider block">🛠️ Nhật ký bảo trì & loại bỏ chuồng</span>
                     {!selectedRoom.maintenanceLogs || selectedRoom.maintenanceLogs.length === 0 ? (
                       <p className="text-[10px] text-gray-400 italic font-semibold">Chưa có lịch sử bảo trì.</p>
                     ) : (
@@ -843,11 +1151,11 @@ export default function RoomsPage() {
                         {selectedRoom.maintenanceLogs.map(log => (
                           <div key={log.id} className="bg-white border border-gray-150 rounded-xl p-2.5 text-[10px] leading-normal font-semibold shadow-sm space-y-1">
                             <div className="flex justify-between font-bold text-amber-900 border-b border-gray-50 pb-1">
-                              <span>Lý do: {log.reason}</span>
+                              <span>Nội dung: {log.reason}</span>
                               <span className="font-mono text-gray-400 text-[8px]">{log.startedAt}</span>
                             </div>
-                            <div className="text-gray-600 mt-0.5">Yêu cầu bởi: <span className="font-bold">{log.requestedBy}</span></div>
-                            {log.completedAt && (
+                            <div className="text-gray-600 mt-0.5">Thực hiện: <span className="font-bold">{log.requestedBy}</span></div>
+                            {log.completedAt && log.completedAt !== log.startedAt && (
                               <div className="text-emerald-700 font-bold">Hoàn thành: {log.completedAt}</div>
                             )}
                             <div className="text-gray-500 italic bg-gray-50/80 p-1.5 rounded-lg mt-1 border border-gray-100/50">"{log.note}"</div>

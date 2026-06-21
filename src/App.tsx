@@ -49,6 +49,7 @@ import ShopHeadStaffFormPage from './pages/shop-head/StaffFormPage'
 import SchedulePage from './pages/shop-head/SchedulePage'
 import LeaveRequestsPage from './pages/shop-head/LeaveRequestsPage'
 import RoomsPage from './pages/shop-head/RoomsPage'
+import StockTransferRequestPage from './pages/shop-head/StockTransferRequestPage'
 import ShopHeadReportsPage from './pages/shop-head/ReportsPage'
 import ShopHeadBookingsPage from './pages/shop-head/BookingsPage'
 import ShopHeadProductsPage from './pages/shop-head/ProductsPage'
@@ -166,7 +167,7 @@ export default function App() {
           <Route path="orders" element={<ShopHeadOrdersPage />} />
           <Route path="vouchers" element={<ShopHeadVouchersPage />} />
           <Route path="vouchers/new" element={<ShopHeadVoucherFormPage />} />
-          <Route path="transfers" element={<TransfersPage />} />
+          <Route path="transfers" element={<StockTransferRequestPage />} />
           <Route path="reports" element={<ShopHeadReportsPage />} />
         </Route>
 

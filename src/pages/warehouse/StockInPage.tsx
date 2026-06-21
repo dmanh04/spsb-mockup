@@ -79,7 +79,7 @@ export default function CreateStockReceiptPage() {
   // Load all cage options
   const allCages = CAGE_MOCK_LIST.filter(c => c.status === 'active').map(cage => ({
     cageId: cage.id,
-    cageCode: cage.code,
+    cageCode: cage.code || '',
     cageName: cage.name,
     size: cage.size,
     material: cage.material,
