@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { CheckCircle, XCircle, Clock, Package, DollarSign, ArrowRight, AlertTriangle, Grid3X3, Eye, TrendingUp, TrendingDown } from 'lucide-react'
 import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
+import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
 import { formatPrice } from '@/utils/format'
+import { addNotification } from '@/data/notificationMockData'
 import type { StockReceipt, StockReceiptStatus } from '@/types'
 
 const STATUS_LABELS: Record<StockReceiptStatus, string> = {
@@ -24,6 +26,8 @@ export default function StockInApprovalPage() {
   const [toast, setToast] = useState('')
   const [estimatedPrices, setEstimatedPrices] = useState<Record<string, number>>({})
   const [actualPrices, setActualPrices] = useState<Record<string, number>>({})
+  const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number>>({})
+  const [batchNumbers, setBatchNumbers] = useState<Record<string, string>>({})
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -37,12 +41,18 @@ export default function StockInApprovalPage() {
     setSelectedReceipt(receipt)
     const ep: Record<string, number> = {}
     const ap: Record<string, number> = {}
+    const rq: Record<string, number> = {}
+    const bn: Record<string, string> = {}
     receipt.items.forEach(item => {
       ep[item.skuId] = item.estimatedCost || 0
-      ap[item.skuId] = item.actualCost || 0
+      ap[item.skuId] = item.actualCost || item.estimatedCost || 0
+      rq[item.skuId] = item.receivedQty || item.orderedQty
+      bn[item.skuId] = item.batchNumber || ''
     })
     setEstimatedPrices(ep)
     setActualPrices(ap)
+    setReceivedQuantities(rq)
+    setBatchNumbers(bn)
   }
 
   function handleApproveWithEstimatedPrice() {
@@ -77,22 +87,88 @@ export default function StockInApprovalPage() {
 
   function handleCompleteWithActualPrice() {
     if (!selectedReceipt) return
+
+    // 1. Update stock receipt details and status
     const updated = receipts.map(r => {
       if (r.id !== selectedReceipt.id) return r
       const updatedItems = r.items.map(item => ({
         ...item,
         actualCost: actualPrices[item.skuId] || 0,
         unitCost: actualPrices[item.skuId] || 0,
+        receivedQty: receivedQuantities[item.skuId] ?? item.orderedQty,
+        batchNumber: batchNumbers[item.skuId] || '',
       }))
       const actualTotal = updatedItems.reduce((s, i) => s + i.receivedQty * (i.actualCost || 0), 0)
       return {
-        ...r, items: updatedItems, status: 'completed' as StockReceiptStatus,
-        totalValue: actualTotal, actualTotalValue: actualTotal,
+        ...r,
+        items: updatedItems,
+        status: 'completed' as StockReceiptStatus,
+        totalValue: actualTotal,
+        actualTotalValue: actualTotal,
       }
     })
-    setReceipts(updated); saveStockReceipts(updated)
+    setReceipts(updated)
+    saveStockReceipts(updated)
+
+    // 2. Increment stock at central warehouse in INVENTORY_ITEMS
+    const updatedInventoryItems = [...INVENTORY_ITEMS]
+    const updatedTransactions = [...INVENTORY_TRANSACTIONS]
+
+    selectedReceipt.items.forEach(item => {
+      const recQty = receivedQuantities[item.skuId] ?? item.orderedQty
+      const batchNum = batchNumbers[item.skuId] || ''
+      const actCost = actualPrices[item.skuId] || 0
+
+      // Find or create in central warehouse
+      const existingIdx = updatedInventoryItems.findIndex(
+        inv => inv.skuId === item.skuId && inv.shopId === 'warehouse'
+      )
+      if (existingIdx > -1) {
+        updatedInventoryItems[existingIdx].quantity += recQty
+        updatedInventoryItems[existingIdx].lastUpdated = new Date().toISOString().slice(0, 10)
+      } else {
+        updatedInventoryItems.push({
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          shopId: 'warehouse',
+          quantity: recQty,
+          minStock: item.itemType === 'cage' ? 5 : 15,
+          category: item.itemType,
+          lastUpdated: new Date().toISOString().slice(0, 10)
+        })
+      }
+
+      // Log transaction
+      const txId = `TX-GRN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`
+      updatedTransactions.push({
+        id: txId,
+        type: 'stock_in',
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        productName: item.productName,
+        shopId: 'warehouse',
+        quantity: recQty,
+        note: `Nhập hàng từ phiếu ${selectedReceipt.id} - Lô: ${batchNum || 'N/A'} - Đơn giá thực tế: ${formatPrice(actCost)}`,
+        createdBy: 'Bùi Văn Khánh',
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      })
+    })
+
+    // 3. Save inventory and auto-sync catalog stock
+    saveInventory(updatedInventoryItems, updatedTransactions)
+
+    // Notify
+    addNotification({
+      type: 'inventory',
+      title: `Nhập kho hoàn tất: ${selectedReceipt.id}`,
+      body: `Phiếu nhập kho ${selectedReceipt.id} từ nhà cung cấp ${selectedReceipt.supplierName} đã hoàn tất nhận hàng và cập nhật tồn kho trung tâm.`,
+      link: '/admin/inventory',
+      forRoles: ['admin']
+    })
+
     setSelectedReceipt(null)
-    showToast(`Đã hoàn tất nhập kho ${selectedReceipt.id} với giá thực tế`)
+    showToast(`Đã hoàn tất nhập kho ${selectedReceipt.id} và cập nhật tồn kho!`)
   }
 
   return (
@@ -226,12 +302,16 @@ export default function StockInApprovalPage() {
                         <>
                           <th className="table-th text-slate-500 py-3">Giá dự kiến</th>
                           <th className="table-th text-slate-500 py-3">Giá thực tế (đ)</th>
+                          <th className="table-th text-slate-500 py-3 text-center">SL thực nhận</th>
+                          <th className="table-th text-slate-500 py-3">Mã lô (Batch)</th>
                         </>
                       )}
                       {selectedReceipt.status === 'completed' && (
                         <>
                           <th className="table-th text-slate-500 py-3">Giá dự kiến</th>
                           <th className="table-th text-slate-500 py-3">Giá thực tế</th>
+                          <th className="table-th text-slate-500 py-3 text-center">SL nhận</th>
+                          <th className="table-th text-slate-500 py-3">Mã lô (Batch)</th>
                           <th className="table-th text-slate-500 py-3">Chênh lệch</th>
                         </>
                       )}
@@ -286,6 +366,24 @@ export default function StockInApprovalPage() {
                                   onChange={e => setActualPrices(prev => ({ ...prev, [item.skuId]: +e.target.value }))}
                                 />
                               </td>
+                              <td className="py-3 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="form-input text-xs py-1 px-2 w-16 text-center border-gray-300 font-semibold"
+                                  value={receivedQuantities[item.skuId] ?? item.orderedQty}
+                                  onChange={e => setReceivedQuantities(prev => ({ ...prev, [item.skuId]: +e.target.value }))}
+                                />
+                              </td>
+                              <td className="py-3">
+                                <input
+                                  type="text"
+                                  className="form-input text-xs py-1 px-2 w-28 border-gray-300 font-mono text-gray-700"
+                                  placeholder="Nhập mã lô..."
+                                  value={batchNumbers[item.skuId] || ''}
+                                  onChange={e => setBatchNumbers(prev => ({ ...prev, [item.skuId]: e.target.value }))}
+                                />
+                              </td>
                             </>
                           )}
 
@@ -293,6 +391,8 @@ export default function StockInApprovalPage() {
                             <>
                               <td className="py-3 text-xs text-gray-600">{item.estimatedCost ? formatPrice(item.estimatedCost) : '—'}</td>
                               <td className="py-3 text-xs font-bold text-gray-900">{item.actualCost ? formatPrice(item.actualCost) : '—'}</td>
+                              <td className="py-3 text-xs text-center font-bold text-gray-800">{item.receivedQty}</td>
+                              <td className="py-3 text-xs font-mono text-gray-500">{item.batchNumber || '—'}</td>
                               <td className="py-3">
                                 {item.estimatedCost && item.actualCost ? (
                                   <span className={`text-[10px] font-bold flex items-center gap-0.5 ${diff > 0 ? 'text-rose-600' : diff < 0 ? 'text-emerald-600' : 'text-gray-400'}`}>

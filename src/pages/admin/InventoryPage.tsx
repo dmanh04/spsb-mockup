@@ -3,15 +3,18 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Search, AlertTriangle, Plus, ClipboardList, History, Package,
   ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Boxes, TrendingDown,
-  BellRing, Radio, Loader2, CheckCircle, X, ChevronRight, Send, Check
+  BellRing, Radio, Loader2, CheckCircle, X, ChevronRight, Send, Check, Trash
 } from 'lucide-react'
 import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS } from '@/data/inventoryMockData'
-import { STOCK_RECEIPTS } from '@/data/stockReceiptMockData'
+import { STOCK_RECEIPTS, saveStockReceipts } from '@/data/stockReceiptMockData'
 import { STOCK_ISSUES } from '@/data/stockIssueMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { formatPrice } from '@/utils/format'
 import { addNotification } from '@/data/notificationMockData'
-import { PURCHASE_ORDER_LIST } from '@/data/supplierMockData'
+import { SUPPLIER_MOCK_LIST } from '@/data/supplierMockData'
+import { PRODUCT_MOCK_LIST } from '@/data/productMockData'
+import { CAGE_MOCK_LIST } from '@/data/cageMockData'
+import type { StockReceipt, StockReceiptItem } from '@/types'
 
 interface WarehousePing {
   id: string
@@ -30,7 +33,25 @@ export default function AdminInventoryPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'balances' | 'transactions'>('overview')
   const [filterShop, setFilterShop] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterCategory, setFilterCategory] = useState<'all' | 'product' | 'cage'>('all')
   const [search, setSearch] = useState('')
+
+  // Stock In Request Modal & Form States
+  const [receiptsList, setReceiptsList] = useState<StockReceipt[]>(() => [...STOCK_RECEIPTS])
+  const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
+  const [newReqSupplierId, setNewReqSupplierId] = useState('')
+  const [newReqItems, setNewReqItems] = useState<{
+    skuId: string
+    skuCode: string
+    productName: string
+    itemType: 'product' | 'cage'
+    orderedQty: number
+  }[]>([])
+  const [addingType, setAddingType] = useState<'product' | 'cage'>('product')
+  const [selectedProductSkuId, setSelectedProductSkuId] = useState('')
+  const [selectedCageId, setSelectedCageId] = useState('')
+  const [addingQty, setAddingQty] = useState<number>(1)
+  const [newReqNote, setNewReqNote] = useState('')
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState('')
@@ -196,6 +217,7 @@ export default function AdminInventoryPage() {
 
   const filteredItems = INVENTORY_ITEMS
     .filter(i => filterShop === 'all' || i.shopId === filterShop)
+    .filter(i => filterCategory === 'all' || i.category === filterCategory)
     .filter(i => {
       if (filterStatus === 'low') return i.quantity > 0 && i.quantity <= i.minStock
       if (filterStatus === 'out') return i.quantity === 0
@@ -211,9 +233,120 @@ export default function AdminInventoryPage() {
   const outOfStock = INVENTORY_ITEMS.filter(i => i.quantity === 0)
   const lowStock = INVENTORY_ITEMS.filter(i => i.quantity > 0 && i.quantity <= i.minStock)
   const totalSKUs = new Set(INVENTORY_ITEMS.map(i => i.skuCode)).size
-  const pendingReceipts = STOCK_RECEIPTS.filter(r => r.status === 'pending_approval').length
+  const pendingReceipts = receiptsList.filter(r => r.status === 'pending_approval').length
   const pendingIssues = STOCK_ISSUES.filter(r => r.status === 'pending_approval').length
-  const pendingPOs = PURCHASE_ORDER_LIST.filter(o => o.status === 'sent').length
+
+  // Helper arrays for adding items in creation modal
+  const allProductSKUs = PRODUCT_MOCK_LIST.filter(p => p.status === 'active').flatMap(prod => 
+    prod.skus.map(sku => ({
+      skuId: sku.id,
+      skuCode: sku.sku,
+      productName: `${prod.name} - ${Object.values(sku.attributes).join('/')}`,
+      itemType: 'product' as const
+    }))
+  )
+
+  const allCages = CAGE_MOCK_LIST.filter(c => c.status === 'active').map(cage => ({
+    skuId: cage.id,
+    skuCode: cage.code,
+    productName: `${cage.name} (Size ${cage.size})`,
+    itemType: 'cage' as const
+  }))
+
+  const handleAddItemToRequest = () => {
+    if (addingType === 'product') {
+      const found = allProductSKUs.find(s => s.skuId === selectedProductSkuId)
+      if (!found) return
+      if (newReqItems.some(i => i.skuId === found.skuId)) {
+        setToastMessage('Mặt hàng này đã có trong danh sách yêu cầu!')
+        setTimeout(() => setToastMessage(''), 3000)
+        return
+      }
+      setNewReqItems(prev => [...prev, {
+        skuId: found.skuId,
+        skuCode: found.skuCode,
+        productName: found.productName,
+        itemType: 'product',
+        orderedQty: addingQty
+      }])
+    } else {
+      const found = allCages.find(c => c.skuId === selectedCageId)
+      if (!found) return
+      if (newReqItems.some(i => i.skuId === found.skuId)) {
+        setToastMessage('Mặt hàng này đã có trong danh sách yêu cầu!')
+        setTimeout(() => setToastMessage(''), 3000)
+        return
+      }
+      setNewReqItems(prev => [...prev, {
+        skuId: found.skuId,
+        skuCode: found.skuCode,
+        productName: found.productName,
+        itemType: 'cage',
+        orderedQty: addingQty
+      }])
+    }
+    setSelectedProductSkuId('')
+    setSelectedCageId('')
+    setAddingQty(1)
+  }
+
+  const handleSubmitRequest = () => {
+    if (!newReqSupplierId) {
+      alert('Vui lòng chọn nhà cung cấp!')
+      return
+    }
+    if (newReqItems.length === 0) {
+      alert('Vui lòng thêm ít nhất một mặt hàng!')
+      return
+    }
+    const supplier = SUPPLIER_MOCK_LIST.find(s => s.id === newReqSupplierId)
+    if (!supplier) return
+
+    const receiptId = `GRN-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`
+    
+    const newReceipt: StockReceipt = {
+      id: receiptId,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      warehouseId: 'warehouse',
+      items: newReqItems.map(item => ({
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        productName: item.productName,
+        itemType: item.itemType,
+        orderedQty: item.orderedQty,
+        receivedQty: 0,
+        unitCost: 0,
+        estimatedCost: 0,
+        actualCost: 0,
+        batchNumber: '',
+        expiryDate: '',
+      })),
+      totalValue: 0,
+      estimatedTotalValue: 0,
+      actualTotalValue: 0,
+      status: 'pending_approval',
+      createdBy: 'Bùi Văn Khánh',
+      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      note: newReqNote
+    }
+
+    const updatedList = [newReceipt, ...STOCK_RECEIPTS]
+    saveStockReceipts(updatedList)
+    setReceiptsList(updatedList)
+    
+    addNotification({
+      type: 'inventory',
+      title: `Yêu cầu nhập kho mới: ${receiptId}`,
+      body: `Quản lý kho vừa gửi một yêu cầu nhập kho mới từ nhà cung cấp ${supplier.name}.`,
+      link: '/admin/stock-in-approval',
+      forRoles: ['admin']
+    })
+
+    setShowCreateRequestModal(false)
+    setToastMessage('Đã tạo và gửi yêu cầu nhập kho thành công!')
+    setTimeout(() => setToastMessage(''), 3000)
+  }
 
   return (
     <div className="space-y-6 text-sm animate-fadeIn">
@@ -222,7 +355,7 @@ export default function AdminInventoryPage() {
         <div>
           <h1 className="text-2xl font-black text-gray-900">Quản lý Kho Toàn hệ thống</h1>
           <p className="text-gray-500 mt-1 font-medium">
-            {totalSKUs} SKU · {INVENTORY_TRANSACTIONS.length} giao dịch · {pendingReceipts + pendingIssues + pendingPOs > 0 && <span className="text-amber-600">{pendingReceipts + pendingIssues + pendingPOs} phiếu chờ duyệt</span>}
+            {totalSKUs} SKU · {INVENTORY_TRANSACTIONS.length} giao dịch · {pendingReceipts + pendingIssues > 0 && <span className="text-amber-600">{pendingReceipts + pendingIssues} phiếu chờ duyệt</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -258,7 +391,7 @@ export default function AdminInventoryPage() {
               { label: 'Tổng SKU', value: totalSKUs, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
               { label: 'Hết hàng', value: outOfStock.length, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
               { label: 'Sắp hết', value: lowStock.length, icon: TrendingDown, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-              { label: 'Phiếu chờ duyệt', value: pendingReceipts + pendingIssues + pendingPOs, icon: ClipboardList, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+              { label: 'Phiếu chờ duyệt', value: pendingReceipts + pendingIssues, icon: ClipboardList, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
             ].map(s => (
               <div key={s.label} className={`rounded-2xl border ${s.border} ${s.bg} p-5 shadow-sm`}>
                 <div className="flex items-start justify-between">
@@ -275,11 +408,11 @@ export default function AdminInventoryPage() {
           {/* Quick Links */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
-              { label: 'Phiếu nhập kho', path: '/admin/inventory/receipts', icon: ArrowDownToLine, count: pendingReceipts, color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200' },
+              { label: 'Phiếu nhập kho', path: '/admin/inventory/receipts', icon: ArrowDownToLine, count: 0, color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200' },
               { label: 'Phiếu xuất kho', path: '/admin/inventory/issues', icon: ArrowUpFromLine, count: pendingIssues, color: 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200' },
               { label: 'Phiếu chuyển kho', path: '/admin/inventory/transfers', icon: ArrowLeftRight, count: 0, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200' },
               { label: 'Kiểm kê kho', path: '/admin/inventory/stock-count', icon: ClipboardList, count: 0, color: 'text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-200' },
-              { label: 'Đơn mua hàng (PO)', path: '/admin/inventory/replenishments', icon: ClipboardList, count: pendingPOs, color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200' },
+              { label: 'Duyệt nhập kho', path: '/admin/stock-in-approval', icon: ClipboardList, count: pendingReceipts, color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200' },
             ].map(a => (
               <Link key={a.path} to={a.path} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${a.color}`}>
                 <a.icon size={20} />
@@ -328,6 +461,105 @@ export default function AdminInventoryPage() {
                       </tr>
                     )
                   })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Yêu cầu & Tiến độ Nhập kho */}
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Yêu cầu & Tiến độ Nhập kho</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Quản lý và theo dõi các yêu cầu nhập hàng (Sản phẩm & Chuồng)</p>
+              </div>
+              <button
+                onClick={() => {
+                  setNewReqSupplierId('')
+                  setNewReqItems([])
+                  setNewReqNote('')
+                  setShowCreateRequestModal(true)
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <Plus size={14} /> Tạo yêu cầu nhập kho
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3 text-left">Mã phiếu</th>
+                    <th className="px-5 py-3 text-left">Nhà cung cấp</th>
+                    <th className="px-5 py-3 text-left">Ngày tạo</th>
+                    <th className="px-5 py-3 text-left">Mặt hàng</th>
+                    <th className="px-5 py-3 text-right">Tổng giá trị</th>
+                    <th className="px-5 py-3 text-center">Trạng thái</th>
+                    <th className="px-5 py-3 text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-semibold text-gray-700">
+                  {receiptsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
+                        Chưa có yêu cầu nhập kho nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    receiptsList.slice(0, 5).map(r => {
+                      const statusLabels: Record<string, string> = {
+                        draft: 'Nháp',
+                        pending_approval: 'Chờ duyệt',
+                        price_negotiating: 'Thương lượng',
+                        approved: 'Chờ nhập hàng',
+                        completed: 'Hoàn tất',
+                        cancelled: 'Đã hủy'
+                      }
+                      const statusColors: Record<string, string> = {
+                        draft: 'badge-gray',
+                        pending_approval: 'badge-orange',
+                        price_negotiating: 'badge-blue',
+                        approved: 'badge-green',
+                        completed: 'badge-slate',
+                        cancelled: 'badge-red'
+                      }
+                      const prodCount = r.items.filter(i => i.itemType === 'product').length
+                      const cageCount = r.items.filter(i => i.itemType === 'cage').length
+                      return (
+                        <tr key={r.id} className="hover:bg-gray-50/50">
+                          <td className="px-5 py-3 text-xs font-mono font-bold text-gray-900">{r.id}</td>
+                          <td className="px-5 py-3 text-xs max-w-[180px] truncate" title={r.supplierName}>{r.supplierName}</td>
+                          <td className="px-5 py-3 text-xs text-gray-400 font-mono">{r.createdAt}</td>
+                          <td className="px-5 py-3 text-xs text-gray-500">
+                            {prodCount > 0 && <span>{prodCount} SP </span>}
+                            {cageCount > 0 && <span>{cageCount} Chuồng</span>}
+                            {prodCount === 0 && cageCount === 0 && <span>0 mặt hàng</span>}
+                          </td>
+                          <td className="px-5 py-3 text-right text-xs text-gray-900 font-bold font-mono">
+                            {r.status === 'completed' 
+                              ? formatPrice(r.actualTotalValue || r.totalValue)
+                              : formatPrice(r.estimatedTotalValue || r.totalValue || 0)}
+                          </td>
+                          <td className="px-5 py-3 text-center text-xs">
+                            <span className={statusColors[r.status] || 'badge-gray'}>{statusLabels[r.status] || r.status}</span>
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            {r.status === 'pending_approval' || r.status === 'approved' ? (
+                              <button
+                                onClick={() => navigate('/admin/stock-in-approval')}
+                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                Duyệt ngay <ChevronRight size={12} />
+                              </button>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -438,39 +670,61 @@ export default function AdminInventoryPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none text-sm font-semibold transition-all"
-                placeholder="Tìm sản phẩm, mã SKU..." value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-2xl">
+              {[
+                { key: 'all', label: 'Tất cả' },
+                { key: 'product', label: 'Sản phẩm' },
+                { key: 'cage', label: 'Chuồng nuôi' },
+              ].map(cat => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setFilterCategory(cat.key as any)}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    filterCategory === cat.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-755'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
-            <select className="px-4 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-semibold"
-              value={filterShop} onChange={e => setFilterShop(e.target.value)}>
-              <option value="all">Tất cả chi nhánh</option>
-              {SHOPS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <select className="px-4 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-semibold"
-              value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-              <option value="all">Tất cả trạng thái</option>
-              <option value="low">Sắp hết</option>
-              <option value="out">Hết hàng</option>
-            </select>
-            {(filterShop !== 'all' || filterStatus !== 'all' || search) && (
-              <button onClick={() => { setFilterShop('all'); setFilterStatus('all'); setSearch('') }}
-                className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 rounded-2xl font-bold cursor-pointer">
-                Xóa bộ lọc
-              </button>
-            )}
+
+            <div className="flex flex-wrap gap-2 flex-1 justify-end min-w-48">
+              <div className="relative flex-1 max-w-xs">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none text-xs font-semibold transition-all"
+                  placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <select className="px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-xs"
+                value={filterShop} onChange={e => setFilterShop(e.target.value)}>
+                <option value="all">Tất cả chi nhánh</option>
+                {SHOPS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select className="px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-xs"
+                value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="low">Sắp hết</option>
+                <option value="out">Hết hàng</option>
+              </select>
+              {(filterShop !== 'all' || filterStatus !== 'all' || filterCategory !== 'all' || search) && (
+                <button onClick={() => { setFilterShop('all'); setFilterStatus('all'); setFilterCategory('all'); setSearch('') }}
+                  className="px-3 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 rounded-2xl font-bold text-xs cursor-pointer">
+                  Xóa bộ lọc
+                </button>
+              )}
+            </div>
           </div>
 
-          <p className="text-xs text-gray-500">{filteredItems.length} sản phẩm thỏa mãn bộ lọc</p>
+          <p className="text-xs text-gray-500">{filteredItems.length} mặt hàng thỏa mãn bộ lọc</p>
 
           <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-4">Sản phẩm</th>
-                  <th className="px-5 py-4">SKU Code</th>
+                  <th className="px-5 py-4">Mặt hàng</th>
+                  <th className="px-5 py-4">Phân loại</th>
+                  <th className="px-5 py-4">Mã Code</th>
                   <th className="px-5 py-4">Vị trí kho / Shop</th>
                   <th className="px-5 py-4 text-right">Số lượng tồn</th>
                   <th className="px-5 py-4 text-right">Ngưỡng tối thiểu</th>
@@ -486,6 +740,13 @@ export default function AdminInventoryPage() {
                   return (
                     <tr key={`${item.skuId}-${item.shopId}-${idx}`} className={`hover:bg-gray-50/50 ${isOut ? 'bg-red-50/10' : ''}`}>
                       <td className="px-5 py-4"><div className="text-sm font-bold text-gray-900">{item.productName}</div></td>
+                      <td className="px-5 py-4 font-semibold text-xs">
+                        {item.category === 'cage' ? (
+                          <span className="px-2.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-255 text-[10px] font-bold rounded-lg">Chuồng</span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-255 text-[10px] font-bold rounded-lg">Sản phẩm</span>
+                        )}
+                      </td>
                       <td className="px-5 py-4 font-mono text-xs text-gray-400">{item.skuCode}</td>
                       <td className="px-5 py-4 text-xs font-bold text-gray-600">{shopLabel}</td>
                       <td className="px-5 py-4 text-right font-mono">
@@ -816,6 +1077,195 @@ export default function AdminInventoryPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TẠO YÊU CẦU NHẬP KHO */}
+      {showCreateRequestModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 shadow-2xl overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-100 overflow-hidden animate-zoomIn flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/10 shrink-0">
+              <div className="flex items-center gap-2.5 text-indigo-600">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <ArrowDownToLine size={18} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-gray-900 text-base">Tạo Yêu Cầu Nhập Kho</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Thêm các mặt hàng sản phẩm hoặc chuồng nuôi cần nhập kho</p>
+                </div>
+              </div>
+              <button onClick={() => setShowCreateRequestModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1.5 rounded-full transition-colors font-bold">&times;</button>
+            </div>
+
+            <div className="p-6 space-y-4 text-left overflow-y-auto flex-1">
+              {/* Supplier Selection */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nhà cung cấp *</label>
+                <select
+                  value={newReqSupplierId}
+                  onChange={e => setNewReqSupplierId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-xs"
+                >
+                  <option value="">Chọn nhà cung cấp</option>
+                  {SUPPLIER_MOCK_LIST.filter(s => s.status === 'active').map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.contactPerson})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Add Item Form */}
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-150 space-y-3">
+                <div className="text-xs font-extrabold text-indigo-700">Thêm mặt hàng vào yêu cầu</div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                  {/* Item Type */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Phân loại</label>
+                    <select
+                      value={addingType}
+                      onChange={e => {
+                        setAddingType(e.target.value as any)
+                        setSelectedProductSkuId('')
+                        setSelectedCageId('')
+                      }}
+                      className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="product">Sản phẩm (SKU)</option>
+                      <option value="cage">Chuồng nuôi</option>
+                    </select>
+                  </div>
+
+                  {/* Item Dropdown */}
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Chọn mặt hàng</label>
+                    {addingType === 'product' ? (
+                      <select
+                        value={selectedProductSkuId}
+                        onChange={e => setSelectedProductSkuId(e.target.value)}
+                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
+                      >
+                        <option value="">Chọn sản phẩm SKU</option>
+                        {allProductSKUs.map(sku => (
+                          <option key={sku.skuId} value={sku.skuId}>{sku.productName}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={selectedCageId}
+                        onChange={e => setSelectedCageId(e.target.value)}
+                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-semibold"
+                      >
+                        <option value="">Chọn chuồng nuôi</option>
+                        {allCages.map(cage => (
+                          <option key={cage.skuId} value={cage.skuId}>{cage.productName} - {cage.skuCode}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Số lượng</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={addingQty}
+                        onChange={e => setAddingQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none text-xs font-bold text-center"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddItemToRequest}
+                      disabled={addingType === 'product' ? !selectedProductSkuId : !selectedCageId}
+                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-sm transition-all shrink-0 cursor-pointer"
+                    >
+                      Thêm
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Added Items List */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Danh sách mặt hàng đã chọn ({newReqItems.length})</label>
+                <div className="border border-gray-150 rounded-2xl overflow-hidden bg-white max-h-48 overflow-y-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="px-4 py-2">Loại</th>
+                        <th className="px-4 py-2">Tên mặt hàng</th>
+                        <th className="px-4 py-2">Mã code</th>
+                        <th className="px-4 py-2 text-right">Số lượng</th>
+                        <th className="px-4 py-2 text-center">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 font-semibold text-xs text-gray-700">
+                      {newReqItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-gray-400">Chưa có mặt hàng nào được chọn.</td>
+                        </tr>
+                      ) : (
+                        newReqItems.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50/50">
+                            <td className="px-4 py-2.5">
+                              {item.itemType === 'cage' ? (
+                                <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 text-[9px] font-bold rounded">Chuồng</span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold rounded">SP</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 max-w-[200px] truncate">{item.productName}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-gray-400">{item.skuCode}</td>
+                            <td className="px-4 py-2.5 text-right font-mono font-bold">{item.orderedQty}</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setNewReqItems(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                              >
+                                <Trash size={12} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={newReqNote}
+                  onChange={e => setNewReqNote(e.target.value)}
+                  placeholder="Ghi chú thêm về lô hàng, yêu cầu đặc biệt..."
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-xs resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowCreateRequestModal(false)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 transition-all cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitRequest}
+                disabled={!newReqSupplierId || newReqItems.length === 0}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-150 transition-all cursor-pointer"
+              >
+                Gửi yêu cầu nhập kho
+              </button>
             </div>
           </div>
         </div>

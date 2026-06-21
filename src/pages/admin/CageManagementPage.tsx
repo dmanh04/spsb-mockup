@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import {
   Search, Plus, Edit, Trash2, Package, AlertTriangle, AlertCircle,
   Grid3X3, CheckCircle, Filter, BarChart2, DollarSign, ArrowUpDown,
-  Boxes, X, ChevronDown, Info, TrendingUp, Tag, MapPin,
+  Boxes, X, ChevronDown, Info, TrendingUp, Tag,
   QrCode, Ruler, Weight, ShieldCheck, Warehouse, RefreshCw,
   Thermometer, Droplets, Lock, Unlock, Sparkles, Printer,
   Wrench, Shield, FileText, ChevronRight, Activity, Scan
@@ -36,26 +36,12 @@ const CLEANLINESS_MAP = {
   cleaning: { label: 'Đang dọn dẹp', badge: 'bg-amber-50 text-amber-700 border-amber-200', icon: RefreshCw, dot: 'bg-amber-500' }
 }
 
-const ASSEMBLY_MAP = {
-  flat_packed: { label: 'Nguyên kiện (Hộp)', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
-  assembled: { label: 'Đã lắp ráp', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
-}
-
 const CONDITION_MAP = {
   new: { label: 'Mới 100%', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   good: { label: 'Hoạt động tốt', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
   fair: { label: 'Khá (Hao mòn)', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   damaged: { label: 'Hỏng hóc', badge: 'bg-red-50 text-red-700 border-red-200' }
 }
-
-// Visual shelves grouping for visual shelving grid representation
-const WAREHOUSE_ZONES = [
-  { id: 'Zone A', name: 'Khu A (Chó)', color: 'border-blue-200 bg-blue-50/20 text-blue-800', shelves: ['A1-01', 'A1-02', 'A1-03', 'A1-04', 'A2-01'] },
-  { id: 'Zone B', name: 'Khu B (Mèo)', color: 'border-pink-200 bg-pink-50/20 text-pink-800', shelves: ['B1-01', 'B1-02', 'B2-01'] },
-  { id: 'Zone C', name: 'Khu C (Lồng VC)', color: 'border-amber-200 bg-amber-50/20 text-amber-800', shelves: ['C1-01', 'C1-02'] },
-  { id: 'Zone D', name: 'Khu D (Chim)', color: 'border-emerald-200 bg-emerald-50/20 text-emerald-800', shelves: ['D1-01'] },
-  { id: 'Zone E', name: 'Khu E (Thỏ/Khác)', color: 'border-purple-200 bg-purple-50/20 text-purple-800', shelves: ['E1-01'] }
-]
 
 function StockBar({ stock, minStock }: { stock: number; minStock: number }) {
   const isOut = stock === 0
@@ -92,9 +78,7 @@ export default function CageManagementPage() {
   const [filterStatus, setFilterStatus] = useState<Cage['status'] | 'all'>('all')
   
   // Warehouse specific filters
-  const [filterAssembly, setFilterAssembly] = useState<'all' | Cage['assemblyStatus']>('all')
   const [filterCleanliness, setFilterCleanliness] = useState<'all' | Cage['cleanliness']>('all')
-  const [selectedShelf, setSelectedShelf] = useState<string | null>(null)
   
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -119,17 +103,13 @@ export default function CageManagementPage() {
   const [fPrice, setFPrice] = useState(0)
   const [fStock, setFStock] = useState(0)
   const [fMinStock, setFMinStock] = useState(3)
-  const [fBarcode, setFBarcode] = useState('')
   const [fStatus, setFStatus] = useState<Cage['status']>('active')
   const [fDesc, setFDesc] = useState('')
   const [fL, setFL] = useState<number | ''>('')
   const [fW, setFW] = useState<number | ''>('')
   const [fH, setFH] = useState<number | ''>('')
   const [fMaxWeight, setFMaxWeight] = useState<number | ''>('')
-  const [fWarranty, setFWarranty] = useState<number | ''>('')
-  const [fLocation, setFLocation] = useState('')
   const [fSupplierName, setFSupplierName] = useState('')
-  const [fAssemblyStatus, setFAssemblyStatus] = useState<Cage['assemblyStatus']>('flat_packed')
   const [fCondition, setFCondition] = useState<Cage['condition']>('new')
   const [fCleanliness, setFCleanliness] = useState<Cage['cleanliness']>('cleaned')
 
@@ -159,7 +139,7 @@ export default function CageManagementPage() {
       setCages(prevCages => {
         let changed = false
         const updated = prevCages.map(c => {
-          if (c.assemblyStatus === 'assembled' && c.status === 'active' && c.sensorData) {
+          if (c.status === 'active' && c.sensorData) {
             changed = true
             // Temperature fluctuations +/- 0.1°C
             const tempDelta = (Math.random() - 0.5) * 0.2
@@ -197,13 +177,8 @@ export default function CageManagementPage() {
     const totalRevenuePotential = cages.reduce((s, c) => s + c.stock * c.price, 0)
     const totalStock = cages.reduce((s, c) => s + c.stock, 0)
     
-    // Assembled vs flat packed
-    const assembledQty = cages.filter(c => c.assemblyStatus === 'assembled').reduce((s, c) => s + c.stock, 0)
-    const flatPackedQty = cages.filter(c => c.assemblyStatus === 'flat_packed').reduce((s, c) => s + c.stock, 0)
-    
-    // Cleanliness status for assembled cages
-    const needsCleaning = cages.filter(c => c.assemblyStatus === 'assembled' && c.cleanliness === 'dirty').length
-    const cleaningInProgress = cages.filter(c => c.assemblyStatus === 'assembled' && c.cleanliness === 'cleaning').length
+    const needsCleaning = cages.filter(c => c.cleanliness === 'dirty').length
+    const cleaningInProgress = cages.filter(c => c.cleanliness === 'cleaning').length
     const activeMaintenance = cages.filter(c => c.status === 'maintenance').length
     const outOfStock = cages.filter(c => c.stock === 0).length
     const lowStock = cages.filter(c => c.stock > 0 && c.stock <= c.minStock).length
@@ -218,8 +193,6 @@ export default function CageManagementPage() {
       totalInventoryValue,
       totalRevenuePotential,
       totalStock,
-      assembledQty,
-      flatPackedQty,
       needsCleaning,
       cleaningInProgress,
       activeMaintenance,
@@ -259,7 +232,6 @@ export default function CageManagementPage() {
       const matchSearch = !search ||
         c.name.toLowerCase().includes(q) ||
         c.code.toLowerCase().includes(q) ||
-        (c.barcode ?? '').includes(q) ||
         (c.supplierName ?? '').toLowerCase().includes(q)
 
       const matchPet = filterPet === 'all' || c.petType === filterPet
@@ -267,13 +239,9 @@ export default function CageManagementPage() {
       const matchStatus = filterStatus === 'all' || c.status === filterStatus
       
       // Warehouse specific filters
-      const matchAssembly = filterAssembly === 'all' || c.assemblyStatus === filterAssembly
       const matchCleanliness = filterCleanliness === 'all' || c.cleanliness === filterCleanliness
-      
-      // Visual shelf coordinate filter
-      const matchShelf = !selectedShelf || (c.location ?? '').includes(selectedShelf)
 
-      return matchSearch && matchPet && matchSize && matchStatus && matchAssembly && matchCleanliness && matchShelf
+      return matchSearch && matchPet && matchSize && matchStatus && matchCleanliness
     })
 
     // Sort
@@ -288,7 +256,7 @@ export default function CageManagementPage() {
     })
 
     return list
-  }, [cages, search, filterPet, filterSize, filterStatus, filterAssembly, filterCleanliness, selectedShelf, sortField, sortDir])
+  }, [cages, search, filterPet, filterSize, filterStatus, filterCleanliness, sortField, sortDir])
 
   const selected = selectedId ? cages.find(c => c.id === selectedId) : null
 
@@ -306,10 +274,10 @@ export default function CageManagementPage() {
     setEditing(null)
     setFName(''); setFCode(''); setFSize('M'); setFMaterial('Inox 304'); setFColor('Bạc')
     setFPetType('dog'); setFCostPrice(100000); setFPrice(150000); setFStock(10); setFMinStock(3)
-    setFBarcode(''); setFStatus('active'); setFDesc('')
-    setFL(60); setFW(45); setFH(50); setFMaxWeight(10); setFWarranty(12)
-    setFLocation('Zone A - Hàng 1 - Kệ A1-01'); setFSupplierName('Xưởng Cơ Khí Inox Hoàng Gia')
-    setFAssemblyStatus('assembled'); setFCondition('new'); setFCleanliness('cleaned')
+    setFStatus('active'); setFDesc('')
+    setFL(60); setFW(45); setFH(50); setFMaxWeight(10)
+    setFSupplierName('Xưởng Cơ Khí Inox Hoàng Gia')
+    setFCondition('new'); setFCleanliness('cleaned')
     setIsFormOpen(true)
   }
 
@@ -318,13 +286,11 @@ export default function CageManagementPage() {
     setFName(cage.name); setFCode(cage.code); setFSize(cage.size)
     setFMaterial(cage.material); setFColor(cage.color ?? '')
     setFPetType(cage.petType); setFCostPrice(cage.costPrice); setFPrice(cage.price)
-    setFStock(cage.stock); setFMinStock(cage.minStock); setFBarcode(cage.barcode ?? '')
+    setFStock(cage.stock); setFMinStock(cage.minStock)
     setFStatus(cage.status); setFDesc(cage.description ?? '')
     setFL(cage.lengthCm ?? ''); setFW(cage.widthCm ?? ''); setFH(cage.heightCm ?? '')
-    setFMaxWeight(cage.maxWeight ?? ''); setFWarranty(cage.warranty ?? '')
-    setFLocation(cage.location ?? '')
+    setFMaxWeight(cage.maxWeight ?? '')
     setFSupplierName(cage.supplierName ?? '')
-    setFAssemblyStatus(cage.assemblyStatus ?? 'flat_packed')
     setFCondition(cage.condition ?? 'new')
     setFCleanliness(cage.cleanliness ?? 'cleaned')
     setIsFormOpen(true)
@@ -337,33 +303,20 @@ export default function CageManagementPage() {
     const petColors: Record<Cage['petType'], string> = { dog: '3B82F6', cat: 'EC4899', bird: '10B981', rabbit: '8B5CF6', other: '94A3B8' }
     const img = `https://placehold.co/200x200/${petColors[fPetType]}/white?text=${encodeURIComponent(fCode)}`
 
-    // Generate mock serial numbers if assembled
-    let serials = editing?.serialNumbers ?? []
-    if (fAssemblyStatus === 'assembled' && serials.length < fStock) {
-      const needed = fStock - serials.length
-      const newSerials = Array.from({ length: needed }).map((_, i) => `SN-${fCode}-${Date.now().toString().slice(-4)}-${serials.length + i + 1}`)
-      serials = [...serials, ...newSerials]
-    } else if (fAssemblyStatus === 'flat_packed') {
-      serials = []
-    }
-
     if (editing) {
       const updated = cages.map(c => c.id === editing.id ? {
         ...c,
         name: fName, code: fCode.toUpperCase(), size: fSize, material: fMaterial, color: fColor,
         petType: fPetType, costPrice: fCostPrice, price: fPrice, stock: fStock, minStock: fMinStock,
-        barcode: fBarcode, status: fStatus, description: fDesc,
+        status: fStatus, description: fDesc,
         lengthCm: fL !== '' ? Number(fL) : undefined,
         widthCm: fW !== '' ? Number(fW) : undefined,
         heightCm: fH !== '' ? Number(fH) : undefined,
         maxWeight: fMaxWeight !== '' ? Number(fMaxWeight) : undefined,
-        warranty: fWarranty !== '' ? Number(fWarranty) : undefined,
-        location: fLocation, image: img,
+        image: img,
         supplierName: fSupplierName,
-        assemblyStatus: fAssemblyStatus,
         condition: fCondition,
-        cleanliness: fCleanliness,
-        serialNumbers: serials,
+        cleanliness: fCleanliness
       } : c)
       setCages(updated)
       saveCages(updated)
@@ -372,21 +325,18 @@ export default function CageManagementPage() {
       const newCage: Cage = {
         id: `CAGE-${Date.now()}`, name: fName, code: fCode.toUpperCase(), size: fSize,
         material: fMaterial, color: fColor, petType: fPetType, costPrice: fCostPrice,
-        price: fPrice, stock: fStock, minStock: fMinStock, barcode: fBarcode, image: img,
+        price: fPrice, stock: fStock, minStock: fMinStock, image: img,
         status: fStatus, description: fDesc,
         lengthCm: fL !== '' ? Number(fL) : undefined,
         widthCm: fW !== '' ? Number(fW) : undefined,
         heightCm: fH !== '' ? Number(fH) : undefined,
         maxWeight: fMaxWeight !== '' ? Number(fMaxWeight) : undefined,
-        warranty: fWarranty !== '' ? Number(fWarranty) : undefined,
-        location: fLocation, createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: new Date().toISOString().slice(0, 10),
         supplierName: fSupplierName,
-        assemblyStatus: fAssemblyStatus,
         condition: fCondition,
         cleanliness: fCleanliness,
-        serialNumbers: serials,
         maintenanceLogs: [],
-        sensorData: fAssemblyStatus === 'assembled' ? { temp: 24.5, humidity: 60, doorOpen: false } : undefined
+        sensorData: { temp: 24.5, humidity: 60, doorOpen: false }
       }
       const updated = [newCage, ...cages]
       setCages(updated)
@@ -414,27 +364,6 @@ export default function CageManagementPage() {
     showToast(`🧼 Cập nhật vệ sinh: ${CLEANLINESS_MAP[key].label}`)
   }
 
-  function handleAssemblyChange(cage: Cage, value: Cage['assemblyStatus']) {
-    const isNowAssembled = value === 'assembled'
-    const updated = cages.map(c => {
-      if (c.id !== cage.id) return c
-      let serials = c.serialNumbers ?? []
-      if (isNowAssembled && serials.length === 0) {
-        serials = Array.from({ length: c.stock }).map((_, i) => `SN-${c.code}-${Date.now().toString().slice(-4)}-${i + 1}`)
-      }
-      return {
-        ...c,
-        assemblyStatus: value,
-        serialNumbers: isNowAssembled ? serials : [],
-        sensorData: isNowAssembled ? { temp: 24.5, humidity: 60, doorOpen: false } : undefined
-      }
-    })
-    setCages(updated)
-    saveCages(updated)
-    const key = value || 'flat_packed'
-    showToast(`🔧 Đã chuyển trạng thái: ${ASSEMBLY_MAP[key].label}`)
-  }
-
   function handleConditionChange(cage: Cage, value: Cage['condition']) {
     const updated = cages.map(c => c.id === cage.id ? { ...c, condition: value } : c)
     setCages(updated)
@@ -449,22 +378,9 @@ export default function CageManagementPage() {
     const updated = cages.map(c => {
       if (c.id !== adjustId) return c
       const nextStock = Math.max(0, c.stock + adjustDelta)
-      
-      // Update serial numbers accordingly if assembled
-      let serials = c.serialNumbers ?? []
-      if (c.assemblyStatus === 'assembled') {
-        if (adjustDelta > 0) {
-          const newSerials = Array.from({ length: adjustDelta }).map((_, i) => `SN-${c.code}-${Date.now().toString().slice(-4)}-${serials.length + i + 1}`)
-          serials = [...serials, ...newSerials]
-        } else if (adjustDelta < 0) {
-          serials = serials.slice(0, nextStock)
-        }
-      }
-
       return {
         ...c,
         stock: nextStock,
-        serialNumbers: serials,
         lastRestockedAt: adjustDelta > 0 ? new Date().toISOString().slice(0, 10) : c.lastRestockedAt
       }
     })
@@ -505,7 +421,7 @@ export default function CageManagementPage() {
   // ── Simulated Scan trigger action ──
   function handleSimulateScan() {
     if (!scanCode.trim()) return
-    const target = cages.find(c => c.barcode === scanCode || c.code === scanCode.toUpperCase())
+    const target = cages.find(c => c.code === scanCode.toUpperCase() || c.id === scanCode)
     
     // Simulated scan beep sound via web audio API if supported
     try {
@@ -527,7 +443,7 @@ export default function CageManagementPage() {
       setScanActionStatus(`Đã tìm thấy: ${target.name}`)
     } else {
       setScanResult(null)
-      setScanActionStatus('❌ Không tìm thấy mã barcode hoặc Model ID tương ứng!')
+      setScanActionStatus('❌ Không tìm thấy Model ID tương ứng!')
     }
   }
 
@@ -543,17 +459,10 @@ export default function CageManagementPage() {
       setScanActionStatus('⚠️ Đã quét: Đánh dấu chuồng bẩn cần vệ sinh!')
     } else if (action === 'stock_in') {
       updatedCage.stock += 1
-      if (updatedCage.assemblyStatus === 'assembled') {
-        const serials = updatedCage.serialNumbers ?? []
-        updatedCage.serialNumbers = [...serials, `SN-${updatedCage.code}-${Date.now().toString().slice(-4)}-${serials.length + 1}`]
-      }
       setScanActionStatus('📥 Đã quét: Tăng số lượng tồn kho lên +1 sản phẩm')
     } else if (action === 'stock_out') {
       if (updatedCage.stock > 0) {
         updatedCage.stock -= 1
-        if (updatedCage.assemblyStatus === 'assembled') {
-          updatedCage.serialNumbers = (updatedCage.serialNumbers ?? []).slice(0, updatedCage.stock)
-        }
         setScanActionStatus('📤 Đã quét: Xuất kho bàn giao hoặc lắp ráp thành công')
       } else {
         setScanActionStatus('⚠️ Lỗi: Không thể xuất kho do tồn kho đang bằng 0!')
@@ -601,7 +510,7 @@ export default function CageManagementPage() {
               Quản lý Chuồng Thú Cưng
             </h1>
             <p className="text-xs text-gray-500 font-medium">
-              Vị trí kho, lắp ráp, tình trạng vệ sinh khử trùng và giám sát IoT thông minh.
+              Lắp ráp, tình trạng vệ sinh khử trùng và giám sát cảm biến IoT thông minh.
             </p>
           </div>
         </div>
@@ -738,7 +647,7 @@ export default function CageManagementPage() {
         </div>
       )}
 
-      {/* ── PERSPECTIVE 2: WAREHOUSE VIEW (Visual Shelving & Scanner) ── */}
+      {/* ── PERSPECTIVE 2: WAREHOUSE VIEW (Operations Perspective) ── */}
       {perspective === 'warehouse' && (
         <div className="space-y-6">
           {/* Quick Scanner & Printers Bar */}
@@ -749,7 +658,7 @@ export default function CageManagementPage() {
                 Công cụ hỗ trợ kho vận chuyên dụng
               </h3>
               <p className="text-xs text-indigo-100">
-                Nhà kho được quét tự động bằng Barcode và in trực tiếp nhãn thông số dán vào kệ.
+                Nhà kho được quét tự động bằng Model ID và in trực tiếp nhãn dán thông số.
               </p>
             </div>
             
@@ -764,63 +673,8 @@ export default function CageManagementPage() {
                 className="px-4 py-2.5 bg-white text-indigo-700 rounded-xl text-xs font-extrabold shadow-sm flex items-center gap-1.5 hover:bg-indigo-50 transition-all cursor-pointer"
               >
                 <Scan size={14} />
-                Quét Barcode / Model
+                Quét Model ID
               </button>
-            </div>
-          </div>
-
-          {/* Visual Shelf Layout Grid */}
-          <div className="bg-white rounded-3xl border border-gray-150 p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div className="flex items-center gap-1.5">
-                <MapPin size={16} className="text-indigo-600" />
-                <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider">
-                  Sơ đồ phân loại kệ chuồng (Warehouse Shelf Mapping)
-                </h3>
-              </div>
-              {selectedShelf && (
-                <button
-                  onClick={() => setSelectedShelf(null)}
-                  className="text-xs text-indigo-650 hover:underline font-bold"
-                >
-                  Xóa lọc kệ
-                </button>
-              )}
-            </div>
-
-            <p className="text-[11px] text-gray-500">
-              Nhấp vào một kệ cụ thể bên dưới để lọc danh mục sản phẩm đang được xếp ở ô kệ đó:
-            </p>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 pt-2">
-              {WAREHOUSE_ZONES.map(zone => (
-                <div key={zone.id} className={`border rounded-2xl p-3.5 space-y-2.5 ${zone.color}`}>
-                  <span className="text-[10px] font-black tracking-wider block uppercase">{zone.name}</span>
-                  <div className="flex flex-col gap-1.5">
-                    {zone.shelves.map(shelf => {
-                      const isActive = selectedShelf === shelf
-                      // Count cages on this shelf
-                      const cageCount = cages.filter(c => (c.location ?? '').includes(shelf)).reduce((s, c) => s + c.stock, 0)
-                      return (
-                        <button
-                          key={shelf}
-                          onClick={() => setSelectedShelf(isActive ? null : shelf)}
-                          className={`w-full py-1.5 px-2 rounded-xl text-center text-xs font-bold transition-all flex justify-between items-center ${
-                            isActive
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                          }`}
-                        >
-                          <span>Kệ {shelf}</span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${isActive ? 'bg-indigo-800 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                            {cageCount}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -834,7 +688,7 @@ export default function CageManagementPage() {
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               className="form-input pl-10 text-xs w-full py-2.5 rounded-xl border-gray-250 focus:border-indigo-500"
-              placeholder="Tìm theo Tên chuồng, Model, Barcode, Nhà cung cấp..."
+              placeholder="Tìm theo Tên chuồng, Model, Nhà cung cấp..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -884,30 +738,18 @@ export default function CageManagementPage() {
               <option value="inactive">Ngừng kinh doanh</option>
             </select>
 
-            {/* Assembly Filter (Warehouse only) */}
+            {/* Cleanliness Filter (Warehouse only) */}
             {perspective === 'warehouse' && (
-              <>
-                <select
-                  className="form-input text-xs py-2 px-3 border-gray-250 rounded-xl focus:border-indigo-500"
-                  value={filterAssembly}
-                  onChange={e => setFilterAssembly(e.target.value as any)}
-                >
-                  <option value="all">🔧 Trạng thái lắp ráp</option>
-                  <option value="flat_packed">Nguyên hộp đóng gói</option>
-                  <option value="assembled">Đã lắp ráp hoàn chỉnh</option>
-                </select>
-
-                <select
-                  className="form-input text-xs py-2 px-3 border-gray-250 rounded-xl focus:border-indigo-500"
-                  value={filterCleanliness}
-                  onChange={e => setFilterCleanliness(e.target.value as any)}
-                >
-                  <option value="all">🧼 Khử trùng (Assembled)</option>
-                  <option value="cleaned">Đã khử trùng sạch</option>
-                  <option value="dirty">Chuồng bẩn cần vệ sinh</option>
-                  <option value="cleaning">Đang vệ sinh dọn dẹp</option>
-                </select>
-              </>
+              <select
+                className="form-input text-xs py-2 px-3 border-gray-250 rounded-xl focus:border-indigo-500"
+                value={filterCleanliness}
+                onChange={e => setFilterCleanliness(e.target.value as any)}
+              >
+                <option value="all">🧼 Khử trùng sạch</option>
+                <option value="cleaned">Đã khử trùng sạch</option>
+                <option value="dirty">Chuồng bẩn cần vệ sinh</option>
+                <option value="cleaning">Đang vệ sinh dọn dẹp</option>
+              </select>
             )}
           </div>
           
@@ -918,14 +760,6 @@ export default function CageManagementPage() {
             <Plus size={14} /> Thêm Mẫu Chuồng
           </button>
         </div>
-
-        {/* Selected shelf tag identifier */}
-        {selectedShelf && (
-          <div className="bg-indigo-50 text-indigo-800 rounded-xl px-4 py-2 text-xs font-bold flex items-center justify-between border border-indigo-100">
-            <span>Đang chỉ hiển thị các sản phẩm tại: <strong>Kệ {selectedShelf}</strong></span>
-            <button onClick={() => setSelectedShelf(null)} className="text-indigo-650 hover:underline">Xóa lọc</button>
-          </div>
-        )}
       </div>
 
       {/* Main content grid: Table + Detailed Side Panel */}
@@ -947,10 +781,7 @@ export default function CageManagementPage() {
                       <th className="py-3.5 px-4 text-center">Biên Lợi Nhuận</th>
                     </>
                   ) : (
-                    <>
-                      <th className="py-3.5 px-4">Tình trạng kệ</th>
-                      <th className="py-3.5 px-4">Vệ sinh / Lắp ráp</th>
-                    </>
+                    <th className="py-3.5 px-4">Trạng thái Vệ sinh</th>
                   )}
 
                   <th className="py-3.5 px-4"><SortBtn field="stock" label="Tồn kho" /></th>
@@ -963,7 +794,6 @@ export default function CageManagementPage() {
                   const isOut = c.stock === 0
                   const isLow = c.stock > 0 && c.stock <= c.minStock
                   const margin = c.price > 0 ? ((c.price - c.costPrice) / c.price * 100) : 0
-                  const isAssembled = c.assemblyStatus === 'assembled'
 
                   return (
                     <tr
@@ -980,8 +810,7 @@ export default function CageManagementPage() {
                           <div>
                             <div className="font-extrabold text-gray-900 text-xs leading-tight">{c.name}</div>
                             <div className="text-[10px] text-gray-400 font-mono mt-1 flex items-center gap-1.5 flex-wrap">
-                              <span className="bg-gray-100 text-gray-600 px-1 rounded font-bold">{c.code}</span>
-                              {c.barcode && <span className="text-gray-300">· Barcode: {c.barcode}</span>}
+                              <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold">{c.code}</span>
                             </div>
                           </div>
                         </div>
@@ -1016,41 +845,23 @@ export default function CageManagementPage() {
 
                       {/* Warehouse Perspective columns */}
                       {perspective === 'warehouse' && (
-                        <>
-                          <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+                            {/* Cleanliness status */}
                             <div className="flex items-center gap-1.5">
-                              <MapPin size={11} className="text-gray-400 shrink-0" />
-                              <span className="text-xs font-bold text-gray-600 leading-tight">{c.location || 'Chưa định vị'}</span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex flex-col gap-1" onClick={e => e.stopPropagation()}>
-                              {/* Assembly status toggle */}
-                              <button
-                                onClick={() => handleAssemblyChange(c, c.assemblyStatus === 'assembled' ? 'flat_packed' : 'assembled')}
-                                className={`text-[9px] font-black px-1.5 py-0.5 rounded border w-fit text-left hover:scale-[1.02] transition-transform ${ASSEMBLY_MAP[c.assemblyStatus ?? 'flat_packed'].badge}`}
+                              <span className={`w-1.5 h-1.5 rounded-full ${CLEANLINESS_MAP[c.cleanliness ?? 'cleaned'].dot} animate-pulse`} />
+                              <select
+                                value={c.cleanliness ?? 'cleaned'}
+                                onChange={e => handleCleanlinessChange(c, e.target.value as any)}
+                                className="text-[11px] font-bold text-gray-600 bg-transparent border-0 py-0 pl-0 pr-5 focus:ring-0 cursor-pointer"
                               >
-                                {ASSEMBLY_MAP[c.assemblyStatus ?? 'flat_packed'].label}
-                              </button>
-
-                              {/* Cleanliness status (Only for assembled cages) */}
-                              {isAssembled && (
-                                <div className="flex items-center gap-1">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${CLEANLINESS_MAP[c.cleanliness ?? 'cleaned'].dot} animate-pulse`} />
-                                  <select
-                                    value={c.cleanliness ?? 'cleaned'}
-                                    onChange={e => handleCleanlinessChange(c, e.target.value as any)}
-                                    className="text-[9px] font-bold text-gray-500 bg-transparent border-0 py-0 pl-0 pr-4 focus:ring-0 cursor-pointer"
-                                  >
-                                    <option value="cleaned">Sạch</option>
-                                    <option value="dirty">Bẩn</option>
-                                    <option value="cleaning">Dọn dẹp</option>
-                                  </select>
-                                </div>
-                              )}
+                                <option value="cleaned">Sạch sẽ</option>
+                                <option value="dirty">Bẩn</option>
+                                <option value="cleaning">Đang dọn</option>
+                              </select>
                             </div>
-                          </td>
-                        </>
+                          </div>
+                        </td>
                       )}
 
                       {/* Stock levels */}
@@ -1143,8 +954,8 @@ export default function CageManagementPage() {
               </button>
             </div>
 
-            {/* Smart IoT Sensor Panel (Only display if assembled and active) */}
-            {selected.assemblyStatus === 'assembled' && selected.status === 'active' && selected.sensorData && (
+            {/* Smart IoT Sensor Panel */}
+            {selected.status === 'active' && selected.sensorData && (
               <div className="bg-gradient-to-br from-indigo-950 to-slate-900 text-white rounded-2xl p-4 space-y-3.5 border border-indigo-850 shadow-md">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1">
@@ -1253,32 +1064,8 @@ export default function CageManagementPage() {
                   <span className="text-[9px] text-gray-400 font-bold uppercase block">Nhà cung cấp</span>
                   <span className="font-bold text-gray-800 block mt-0.5 truncate" title={selected.supplierName}>{selected.supplierName || 'N/A'}</span>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-                  <span className="text-[9px] text-gray-400 font-bold uppercase block">Vị trí lưu kho</span>
-                  <span className="font-bold text-gray-800 block mt-0.5 font-mono">{selected.location || 'Chưa xếp kệ'}</span>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-                  <span className="text-[9px] text-gray-400 font-bold uppercase block">Bảo hành chính hãng</span>
-                  <span className="font-bold text-gray-800 block mt-0.5">{selected.warranty ? `${selected.warranty} tháng` : 'N/A'}</span>
-                </div>
               </div>
             </div>
-
-            {/* Serial Numbers (For assembled cages) */}
-            {selected.assemblyStatus === 'assembled' && selected.serialNumbers && selected.serialNumbers.length > 0 && (
-              <div className="border border-gray-150 rounded-2xl p-4 space-y-2.5">
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                  <QrCode size={12} /> Mã tài sản / Số Serial số lượng lắp ráp ({selected.serialNumbers.length})
-                </div>
-                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                  {selected.serialNumbers.map(sn => (
-                    <span key={sn} className="bg-gray-100 text-gray-700 text-[9px] font-mono font-bold px-2 py-0.5 rounded border border-gray-200">
-                      {sn}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Maintenance History Logs */}
             <div className="border border-gray-150 rounded-2xl p-4 space-y-3">
@@ -1446,10 +1233,6 @@ export default function CageManagementPage() {
                     <input className="form-input text-xs py-2 rounded-xl font-mono uppercase" placeholder="CAGE-DOG-M-INOX" required value={fCode} onChange={e => setFCode(e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Mã Barcode định danh</label>
-                    <input className="form-input text-xs py-2 rounded-xl font-mono" placeholder="8934588001001" value={fBarcode} onChange={e => setFBarcode(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">Loại thú cưng sử dụng</label>
                     <select className="form-input text-xs py-2 rounded-xl" value={fPetType} onChange={e => setFPetType(e.target.value as Cage['petType'])}>
                       <option value="dog">🐕 Chó</option>
@@ -1476,13 +1259,9 @@ export default function CageManagementPage() {
                     <label className="text-xs font-bold text-gray-600">Màu sắc sơn phủ</label>
                     <input className="form-input text-xs py-2 rounded-xl" placeholder="Bạc, Đen nhám..." value={fColor} onChange={e => setFColor(e.target.value)} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 md:col-span-2">
                     <label className="text-xs font-bold text-gray-600">Nhà cung cấp / Phân phối</label>
                     <input className="form-input text-xs py-2 rounded-xl" placeholder="Công ty Inox Hoàng Gia" value={fSupplierName} onChange={e => setFSupplierName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Vị trí xếp kệ lưu kho</label>
-                    <input className="form-input text-xs py-2 rounded-xl font-mono" placeholder="Zone A - Kệ A1-02" value={fLocation} onChange={e => setFLocation(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -1501,24 +1280,13 @@ export default function CageManagementPage() {
                     <label className="text-xs font-bold text-gray-600">Giá niêm yết bán lẻ (VND) <span className="text-red-500">*</span></label>
                     <input type="number" required className="form-input text-xs py-2 rounded-xl" value={fPrice} onChange={e => setFPrice(Number(e.target.value))} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-2">
                     <label className="text-xs font-bold text-gray-600">Tồn kho ban đầu</label>
                     <input type="number" className="form-input text-xs py-2 rounded-xl" value={fStock} onChange={e => setFStock(Number(e.target.value))} />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Ngưỡng báo động</label>
+                  <div className="space-y-1 col-span-2">
+                    <label className="text-xs font-bold text-gray-600">Ngưỡng báo động tồn kho thấp</label>
                     <input type="number" className="form-input text-xs py-2 rounded-xl" value={fMinStock} onChange={e => setFMinStock(Number(e.target.value))} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Tình trạng lắp ráp</label>
-                    <select className="form-input text-xs py-2 rounded-xl" value={fAssemblyStatus} onChange={e => setFAssemblyStatus(e.target.value as any)}>
-                      <option value="flat_packed">Flat-packed (Trong hộp)</option>
-                      <option value="assembled">Assembled (Lắp ráp sẵn)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600">Thiết bị bảo hành</label>
-                    <input type="number" placeholder="12 tháng" className="form-input text-xs py-2 rounded-xl" value={fWarranty} onChange={e => setFWarranty(e.target.value === '' ? '' : Number(e.target.value))} />
                   </div>
                 </div>
               </div>
@@ -1578,7 +1346,7 @@ export default function CageManagementPage() {
 
             <div className="space-y-3.5">
               <p className="text-xs text-gray-500 leading-relaxed">
-                Nhập Barcode EAN của sản phẩm hoặc Mã Model (hoặc chọn nhanh từ danh mục mẫu có sẵn dưới đây) để giả lập thao tác bắn máy quét mã vạch ngoài đời:
+                Nhập hoặc chọn mã Model ID để giả lập thao tác bắn máy quét mã vạch ngoài đời:
               </p>
 
               <div className="space-y-2">
@@ -1590,8 +1358,8 @@ export default function CageManagementPage() {
                 >
                   <option value="">-- Click để chọn chuồng mẫu --</option>
                   {cages.map(c => (
-                    <option key={c.id} value={c.barcode || c.code}>
-                      [{c.code}] - {c.name} {c.barcode ? `(${c.barcode})` : ''}
+                    <option key={c.id} value={c.code}>
+                      [{c.code}] - {c.name}
                     </option>
                   ))}
                 </select>
@@ -1600,7 +1368,7 @@ export default function CageManagementPage() {
               <div className="flex gap-2">
                 <input
                   className="form-input text-xs py-2 rounded-xl font-mono uppercase"
-                  placeholder="Nhập mã barcode hoặc mã Code mẫu..."
+                  placeholder="Nhập mã Code mẫu..."
                   value={scanCode}
                   onChange={e => setScanCode(e.target.value)}
                 />
@@ -1669,13 +1437,13 @@ export default function CageManagementPage() {
         </div>
       )}
 
-      {/* ── MODAL: PRINTABLE BARCODE LABEL PREVIEW ── */}
+      {/* ── MODAL: PRINTABLE LABEL PREVIEW ── */}
       {isLabelModalOpen && labelTarget && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-scaleUp">
             <div className="flex items-center justify-between border-b border-gray-150 pb-2">
               <h3 className="text-sm font-black text-gray-900 flex items-center gap-1.5">
-                <Printer className="text-indigo-650" size={16} /> Mẫu in tem nhãn tài sản kệ kho
+                <Printer className="text-indigo-650" size={16} /> Mẫu in tem nhãn tài sản sản phẩm
               </h3>
               <button onClick={() => setIsLabelModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"><X size={16} /></button>
             </div>
@@ -1691,7 +1459,6 @@ export default function CageManagementPage() {
                 <div className="space-y-0.5">
                   <div className="text-xs font-black leading-tight uppercase truncate">{labelTarget.name}</div>
                   <div className="text-[9px] font-semibold text-gray-600">Model: {labelTarget.code}</div>
-                  <div className="text-[9px] font-bold text-indigo-900">Vị trí: {labelTarget.location || 'CHƯA PHÂN KỆ'}</div>
                 </div>
 
                 {/* Simulated Barcode Graphic */}
@@ -1705,7 +1472,7 @@ export default function CageManagementPage() {
                       />
                     ))}
                   </div>
-                  <span className="text-[9px] font-mono tracking-widest mt-1 block font-bold">{labelTarget.barcode || 'NO BARCODE'}</span>
+                  <span className="text-[9px] font-mono tracking-widest mt-1 block font-bold">{labelTarget.code}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-[8px] text-gray-500 pt-1.5 border-t border-gray-200">
@@ -1719,7 +1486,7 @@ export default function CageManagementPage() {
               <button onClick={() => setIsLabelModalOpen(false)} className="btn-secondary flex-1 justify-center py-2.5 rounded-xl text-xs font-bold">Hủy Bỏ</button>
               <button
                 onClick={() => {
-                  alert('🖨️ Yêu cầu in mã vạch đã được gửi tới máy in nhiệt tại quầy kho thành công!')
+                  alert('🖨️ Yêu cầu in tem nhãn sản phẩm đã được gửi tới máy in nhiệt thành công!')
                   setIsLabelModalOpen(false)
                 }}
                 className="flex-1 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"

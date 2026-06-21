@@ -299,7 +299,7 @@ export type InventoryTxType =
   | 'stock_in' | 'stock_out'
   | 'transfer_in' | 'transfer_out' | 'adjustment'
 
-export type InventoryItemCategory = 'product' | 'consumable'
+export type InventoryItemCategory = 'product' | 'consumable' | 'cage'
 
 export interface InventoryItem {
   skuId: string
