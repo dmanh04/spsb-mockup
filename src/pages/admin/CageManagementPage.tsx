@@ -410,7 +410,8 @@ export default function CageManagementPage() {
     const updated = cages.map(c => c.id === cage.id ? { ...c, cleanliness: value } : c)
     setCages(updated)
     saveCages(updated)
-    showToast(`🧼 Cập nhật vệ sinh: ${CLEANLINESS_MAP[value].label}`)
+    const key = value || 'cleaned'
+    showToast(`🧼 Cập nhật vệ sinh: ${CLEANLINESS_MAP[key].label}`)
   }
 
   function handleAssemblyChange(cage: Cage, value: Cage['assemblyStatus']) {
@@ -430,14 +431,16 @@ export default function CageManagementPage() {
     })
     setCages(updated)
     saveCages(updated)
-    showToast(`🔧 Đã chuyển trạng thái: ${ASSEMBLY_MAP[value].label}`)
+    const key = value || 'flat_packed'
+    showToast(`🔧 Đã chuyển trạng thái: ${ASSEMBLY_MAP[key].label}`)
   }
 
   function handleConditionChange(cage: Cage, value: Cage['condition']) {
     const updated = cages.map(c => c.id === cage.id ? { ...c, condition: value } : c)
     setCages(updated)
     saveCages(updated)
-    showToast(`📈 Tình trạng thiết bị: ${CONDITION_MAP[value].label}`)
+    const key = value || 'new'
+    showToast(`📈 Tình trạng thiết bị: ${CONDITION_MAP[key].label}`)
   }
 
   // ── Quick Stock adjustment confirmation ──
