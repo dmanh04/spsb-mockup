@@ -22,9 +22,26 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 42,
     maxWeight: 5,
     warranty: 12,
-    location: 'Kệ A1-01',
+    location: 'Zone A - Hàng 1 - Kệ A1-01',
     createdAt: '2026-05-10',
     lastRestockedAt: '2026-06-05',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'good',
+    cleanliness: 'cleaned',
+    supplierName: 'Xưởng Cơ Khí Inox Hoàng Gia',
+    serialNumbers: ['SN-CAGE-001-A1', 'SN-CAGE-001-A2', 'SN-CAGE-001-A3'],
+    maintenanceLogs: [
+      { id: 'M-101', date: '2026-05-20', task: 'Hàn lại góc bản lề cửa', technician: 'Nguyễn Văn Hùng', cost: 80000, status: 'completed' },
+      { id: 'M-102', date: '2026-06-15', task: 'Vệ sinh rỉ sét nhẹ & đánh bóng', technician: 'Lê Văn Tám', cost: 50000, status: 'completed' }
+    ],
+    sensorData: {
+      temp: 24.8,
+      humidity: 60,
+      doorOpen: false
+    },
+    occupantName: 'Milu',
+    occupiedAt: '2026-06-20 08:30'
   },
   {
     id: 'CAGE-002',
@@ -47,9 +64,23 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 58,
     maxWeight: 15,
     warranty: 12,
-    location: 'Kệ A1-02',
+    location: 'Zone A - Hàng 1 - Kệ A1-02',
     createdAt: '2026-05-10',
     lastRestockedAt: '2026-06-05',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'new',
+    cleanliness: 'cleaned',
+    supplierName: 'Xưởng Cơ Khí Inox Hoàng Gia',
+    serialNumbers: ['SN-CAGE-002-B1', 'SN-CAGE-002-B2'],
+    maintenanceLogs: [
+      { id: 'M-201', date: '2026-06-01', task: 'Lắp thêm đệm cao su chân đế chống ồn', technician: 'Trần Minh Hải', cost: 40000, status: 'completed' }
+    ],
+    sensorData: {
+      temp: 25.2,
+      humidity: 62,
+      doorOpen: true
+    }
   },
   {
     id: 'CAGE-003',
@@ -72,9 +103,21 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 70,
     maxWeight: 30,
     warranty: 24,
-    location: 'Kệ A1-03',
+    location: 'Zone A - Hàng 1 - Kệ A1-03',
     createdAt: '2026-05-10',
     lastRestockedAt: '2026-06-12',
+    // Operational details
+    assemblyStatus: 'flat_packed',
+    condition: 'new',
+    cleanliness: 'cleaned',
+    supplierName: 'Nhà Nhập Khẩu PetLand Corp',
+    serialNumbers: [],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 24.5,
+      humidity: 58,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-004',
@@ -97,9 +140,26 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 90,
     maxWeight: 60,
     warranty: 24,
-    location: 'Kệ A2-01',
+    location: 'Zone A - Hàng 2 - Kệ A2-01',
     createdAt: '2026-05-12',
     lastRestockedAt: '2026-06-10',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'fair',
+    cleanliness: 'dirty',
+    supplierName: 'Nhà Phân Phối Thiết Bị Thú Cưng Việt Nam',
+    serialNumbers: ['SN-CAGE-004-C1'],
+    maintenanceLogs: [
+      { id: 'M-401', date: '2026-05-25', task: 'Sơn dặm vết trầy xước chống rỉ sét', technician: 'Nguyễn Văn Hùng', cost: 120000, status: 'completed' },
+      { id: 'M-402', date: '2026-06-20', task: 'Sửa kẹt chốt khóa chính', technician: 'Trần Minh Hải', cost: 60000, status: 'pending' }
+    ],
+    sensorData: {
+      temp: 26.5,
+      humidity: 65,
+      doorOpen: false
+    },
+    occupantName: 'Kiki',
+    occupiedAt: '2026-06-21 14:00'
   },
   {
     id: 'CAGE-005',
@@ -122,9 +182,23 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 120,
     maxWeight: 15,
     warranty: 12,
-    location: 'Kệ B1-01',
+    location: 'Zone B - Hàng 1 - Kệ B1-01',
     createdAt: '2026-05-15',
     lastRestockedAt: '2026-06-12',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'good',
+    cleanliness: 'cleaning',
+    supplierName: 'Xưởng Cơ Khí Inox Hoàng Gia',
+    serialNumbers: ['SN-CAGE-005-D1', 'SN-CAGE-005-D2'],
+    maintenanceLogs: [
+      { id: 'M-501', date: '2026-06-10', task: 'Thay thế thang gỗ leo bị gãy', technician: 'Lê Văn Tám', cost: 150000, status: 'completed' }
+    ],
+    sensorData: {
+      temp: 24.2,
+      humidity: 55,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-006',
@@ -147,9 +221,21 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 80,
     maxWeight: 10,
     warranty: 12,
-    location: 'Kệ B1-02',
+    location: 'Zone B - Hàng 1 - Kệ B1-02',
     createdAt: '2026-05-18',
     lastRestockedAt: '2026-06-01',
+    // Operational details
+    assemblyStatus: 'flat_packed',
+    condition: 'new',
+    cleanliness: 'cleaned',
+    supplierName: 'Xưởng Nhựa & Kim Khí Việt Nhật',
+    serialNumbers: [],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 25.0,
+      humidity: 59,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-007',
@@ -172,9 +258,21 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 30,
     maxWeight: 6,
     warranty: 6,
-    location: 'Kệ C1-01',
+    location: 'Zone C - Hàng 1 - Kệ C1-01',
     createdAt: '2026-05-20',
     lastRestockedAt: '2026-06-08',
+    // Operational details
+    assemblyStatus: 'flat_packed',
+    condition: 'new',
+    cleanliness: 'cleaned',
+    supplierName: 'Công ty Nhựa Việt Nhật',
+    serialNumbers: [],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 24.6,
+      humidity: 61,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-008',
@@ -197,9 +295,25 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 65,
     maxWeight: 2,
     warranty: 6,
-    location: 'Kệ D1-01',
+    location: 'Zone D - Hàng 1 - Kệ D1-01',
     createdAt: '2026-05-22',
     lastRestockedAt: '2026-05-22',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'good',
+    cleanliness: 'cleaned',
+    supplierName: 'Tổng Kho Phụ Kiện Thú Cưng Sài Gòn',
+    serialNumbers: ['SN-CAGE-008-E1', 'SN-CAGE-008-E2'],
+    maintenanceLogs: [
+      { id: 'M-801', date: '2026-06-05', task: 'Thay mới 2 cóng nước thủy tinh', technician: 'Lê Văn Tám', cost: 30000, status: 'completed' }
+    ],
+    sensorData: {
+      temp: 25.8,
+      humidity: 57,
+      doorOpen: false
+    },
+    occupantName: 'Vẹt Đốm',
+    occupiedAt: '2026-06-18 10:00'
   },
   {
     id: 'CAGE-009',
@@ -222,9 +336,21 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 85,
     maxWeight: 8,
     warranty: 12,
-    location: 'Kệ E1-01',
+    location: 'Zone E - Hàng 1 - Kệ E1-01',
     createdAt: '2026-05-25',
     lastRestockedAt: '2026-06-10',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'good',
+    cleanliness: 'cleaned',
+    supplierName: 'Xưởng Gỗ Thủ Công Đồng Nai',
+    serialNumbers: ['SN-CAGE-009-F1'],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 24.1,
+      humidity: 56,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-010',
@@ -247,9 +373,23 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 38,
     maxWeight: 5,
     warranty: 6,
-    location: 'Kệ B2-01',
+    location: 'Zone B - Hàng 2 - Kệ B2-01',
     createdAt: '2026-04-01',
     lastRestockedAt: '2026-04-01',
+    // Operational details
+    assemblyStatus: 'flat_packed',
+    condition: 'damaged',
+    cleanliness: 'dirty',
+    supplierName: 'Xưởng Cơ Khí Inox Hoàng Gia',
+    serialNumbers: [],
+    maintenanceLogs: [
+      { id: 'M-010', date: '2026-04-10', task: 'Bản lề bị rỉ nặng khó mở cửa', technician: 'Trần Minh Hải', cost: 100000, status: 'completed' }
+    ],
+    sensorData: {
+      temp: 25.1,
+      humidity: 63,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-011',
@@ -272,9 +412,21 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 61,
     maxWeight: 15,
     warranty: 12,
-    location: 'Kệ A1-04',
+    location: 'Zone A - Hàng 1 - Kệ A1-04',
     createdAt: '2026-06-01',
     lastRestockedAt: '2026-06-12',
+    // Operational details
+    assemblyStatus: 'assembled',
+    condition: 'good',
+    cleanliness: 'cleaned',
+    supplierName: 'Xưởng Nhựa & Kim Khí Việt Nhật',
+    serialNumbers: ['SN-CAGE-011-G1'],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 24.9,
+      humidity: 59,
+      doorOpen: false
+    }
   },
   {
     id: 'CAGE-012',
@@ -297,10 +449,22 @@ const INITIAL_CAGES: Cage[] = [
     heightCm: 42,
     maxWeight: 12,
     warranty: 12,
-    location: 'Kệ C1-02',
+    location: 'Zone C - Hàng 1 - Kệ C1-02',
     createdAt: '2026-06-05',
     lastRestockedAt: '2026-06-05',
-  },
+    // Operational details
+    assemblyStatus: 'flat_packed',
+    condition: 'new',
+    cleanliness: 'cleaned',
+    supplierName: 'Công ty Nhựa Việt Nhật',
+    serialNumbers: [],
+    maintenanceLogs: [],
+    sensorData: {
+      temp: 24.3,
+      humidity: 60,
+      doorOpen: false
+    }
+  }
 ]
 
 const KEY = 'spsb_cages'
@@ -309,7 +473,11 @@ const getStored = (): Cage[] => {
   if (typeof window !== 'undefined' && window.localStorage) {
     const data = localStorage.getItem(KEY)
     if (data) {
-      try { return JSON.parse(data) } catch { /* ignore */ }
+      try {
+        return JSON.parse(data)
+      } catch {
+        /* ignore */
+      }
     }
   }
   return INITIAL_CAGES

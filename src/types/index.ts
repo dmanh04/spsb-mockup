@@ -347,6 +347,15 @@ export interface StockTransfer {
 }
 
 // Cage / Enclosure (Chuồng thú cưng)
+export interface CageMaintenanceLog {
+  id: string
+  date: string
+  task: string
+  technician: string
+  cost: number
+  status: 'completed' | 'pending'
+}
+
 export interface Cage {
   id: string
   name: string
@@ -372,6 +381,20 @@ export interface Cage {
   location?: string       // Vị trí trong kho
   createdAt: string
   lastRestockedAt?: string
+  // Real-world operational details
+  assemblyStatus?: 'flat_packed' | 'assembled'
+  condition?: 'new' | 'good' | 'fair' | 'damaged'
+  cleanliness?: 'cleaned' | 'dirty' | 'cleaning'
+  supplierName?: string
+  serialNumbers?: string[]
+  maintenanceLogs?: CageMaintenanceLog[]
+  sensorData?: {
+    temp: number
+    humidity: number
+    doorOpen: boolean
+  }
+  occupantName?: string
+  occupiedAt?: string
 }
 
 // Stock Receipt (Phiếu Nhập Kho - GRN)
