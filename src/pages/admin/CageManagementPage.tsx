@@ -7,7 +7,7 @@ import {
   Thermometer, Droplets, Lock, Unlock, Sparkles, Printer,
   Wrench, Shield, FileText, ChevronRight, Activity, Scan
 } from 'lucide-react'
-import { CAGE_MOCK_LIST, saveCages } from '@/data/cageMockData'
+import { CAGE_MOCK_LIST, saveCages, CAGE_CATEGORIES } from '@/data/cageMockData'
 import { formatPrice } from '@/utils/format'
 import { useAuthContext } from '@/auth/AuthContext'
 import type { Cage, CageMaintenanceLog } from '@/types'
@@ -91,6 +91,7 @@ export default function CageManagementPage() {
   const [filterPet, setFilterPet] = useState<'dog' | 'cat' | 'bird' | 'rabbit' | 'other' | 'all'>('all')
   const [filterSize, setFilterSize] = useState<Cage['size'] | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<Cage['status'] | 'all'>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
   
   // Warehouse specific filters
   const [filterCleanliness, setFilterCleanliness] = useState<'all' | Cage['cleanliness']>('all')
@@ -127,6 +128,7 @@ export default function CageManagementPage() {
   const [fSupplierName, setFSupplierName] = useState('')
   const [fCondition, setFCondition] = useState<Cage['condition']>('new')
   const [fCleanliness, setFCleanliness] = useState<Cage['cleanliness']>('cleaned')
+  const [fCategoryId, setFCategoryId] = useState<string>('CC01')
 
   // ── Quick stock adjust state ──
   const [adjustId, setAdjustId] = useState<string | null>(null)
@@ -255,10 +257,13 @@ export default function CageManagementPage() {
       const matchSize = filterSize === 'all' || c.size === filterSize
       const matchStatus = filterStatus === 'all' || c.status === filterStatus
       
+      // Category filter
+      const matchCategory = filterCategory === 'all' || c.categoryId === filterCategory
+
       // Warehouse specific filters
       const matchCleanliness = filterCleanliness === 'all' || c.cleanliness === filterCleanliness
 
-      return matchSearch && matchPet && matchSize && matchStatus && matchCleanliness
+      return matchSearch && matchPet && matchSize && matchStatus && matchCleanliness && matchCategory
     })
 
     // Sort
@@ -295,6 +300,7 @@ export default function CageManagementPage() {
     setFL(60); setFW(45); setFH(50); setFMaxWeight(10)
     setFSupplierName('Xưởng Cơ Khí Inox Hoàng Gia')
     setFCondition('new'); setFCleanliness('cleaned')
+    setFCategoryId('CC01')
     setIsFormOpen(true)
   }
 
@@ -310,6 +316,7 @@ export default function CageManagementPage() {
     setFSupplierName(cage.supplierName ?? '')
     setFCondition(cage.condition ?? 'new')
     setFCleanliness(cage.cleanliness ?? 'cleaned')
+    setFCategoryId(cage.categoryId ?? 'CC01')
     setIsFormOpen(true)
   }
 
@@ -320,6 +327,9 @@ export default function CageManagementPage() {
     const petColors: Record<'dog' | 'cat' | 'bird' | 'rabbit' | 'other', string> = { dog: '3B82F6', cat: 'EC4899', bird: '10B981', rabbit: '8B5CF6', other: '94A3B8' }
     const primaryPetType = fPetTypes[0] || 'other'
     const img = `https://placehold.co/200x200/${petColors[primaryPetType]}/white?text=${encodeURIComponent(fCode)}`
+
+    const selectedCategory = CAGE_CATEGORIES.find(c => c.id === fCategoryId)
+    const categoryName = selectedCategory ? selectedCategory.name : ''
 
     if (editing) {
       const updated = cages.map(c => c.id === editing.id ? {
@@ -334,7 +344,9 @@ export default function CageManagementPage() {
         image: img,
         supplierName: fSupplierName,
         condition: fCondition,
-        cleanliness: fCleanliness
+        cleanliness: fCleanliness,
+        categoryId: fCategoryId,
+        categoryName: categoryName
       } : c)
       setCages(updated)
       saveCages(updated)
@@ -353,6 +365,8 @@ export default function CageManagementPage() {
         supplierName: fSupplierName,
         condition: fCondition,
         cleanliness: fCleanliness,
+        categoryId: fCategoryId,
+        categoryName: categoryName,
         maintenanceLogs: [],
         sensorData: { temp: 24.5, humidity: 60, doorOpen: false }
       }
@@ -698,6 +712,34 @@ export default function CageManagementPage() {
         </div>
       )}
 
+      {/* Category Filter Pills */}
+      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
+        <button 
+          onClick={() => setFilterCategory('all')}
+          className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+            filterCategory === 'all' 
+              ? 'bg-indigo-600 text-white border-indigo-650 shadow-md shadow-indigo-200' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          Tất cả danh mục
+        </button>
+        {CAGE_CATEGORIES.map(cat => (
+          <button 
+            key={cat.id} 
+            onClick={() => setFilterCategory(filterCategory === cat.id ? 'all' : cat.id)}
+            className={`shrink-0 flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+              filterCategory === cat.id 
+                ? 'bg-indigo-600 text-white border-indigo-650 shadow-md shadow-indigo-200' 
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
       {/* Filter and Search Section */}
       <div className="bg-white rounded-3xl border border-gray-150 p-5 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center gap-3.5">
@@ -828,6 +870,13 @@ export default function CageManagementPage() {
                             <div className="font-extrabold text-gray-900 text-xs leading-tight">{c.name}</div>
                             <div className="text-[10px] text-gray-400 font-mono mt-1 flex items-center gap-1.5 flex-wrap">
                               <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold">{c.code}</span>
+                              <span className="inline-flex items-center gap-1 bg-slate-50 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[9px] font-bold">
+                                <span 
+                                  className="w-1.5 h-1.5 rounded-full" 
+                                  style={{ backgroundColor: CAGE_CATEGORIES.find(cat => cat.id === c.categoryId)?.color || '#94A3B8' }} 
+                                />
+                                {c.categoryName || 'Không xác định'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -952,6 +1001,13 @@ export default function CageManagementPage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black border ${STATUS_MAP[selected.status].badge}`}>
                     {STATUS_MAP[selected.status].label}
+                  </span>
+                  <span className="inline-flex items-center gap-1 bg-slate-50 text-gray-750 border border-gray-200 px-2 py-0.5 rounded-lg text-[9px] font-black">
+                    <span 
+                      className="w-1.5 h-1.5 rounded-full" 
+                      style={{ backgroundColor: CAGE_CATEGORIES.find(cat => cat.id === selected.categoryId)?.color || '#94A3B8' }} 
+                    />
+                    {selected.categoryName}
                   </span>
                   {selected.petTypes?.map(pt => (
                     <span key={pt} className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg border ${PET_TYPE_MAP[pt]?.color || ''}`}>
@@ -1272,6 +1328,19 @@ export default function CageManagementPage() {
                       <option value="M">M (Thú vừa 5-15kg)</option>
                       <option value="L">L (Thú to 15-30kg)</option>
                       <option value="XL">XL (Rất to trên 30kg)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">Loại chuồng / Phân loại <span className="text-red-500">*</span></label>
+                    <select 
+                      className="form-input text-xs py-2 rounded-xl" 
+                      required 
+                      value={fCategoryId} 
+                      onChange={e => setFCategoryId(e.target.value)}
+                    >
+                      {CAGE_CATEGORIES.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1">

@@ -1,10 +1,39 @@
 import type { Cage } from '@/types'
 
+export interface CageCategory {
+  id: string
+  name: string
+  color: string
+}
+
+export const CAGE_CATEGORIES: CageCategory[] = [
+  { id: 'CC01', name: 'Chuồng Grooming', color: '#3B82F6' },
+  { id: 'CC02', name: 'Chuồng Spa', color: '#8B5CF6' },
+  { id: 'CC03', name: 'Chuồng Tắm', color: '#10B981' },
+  { id: 'CC04', name: 'Chuồng Lưu trú / Nội trú', color: '#F59E0B' },
+]
+
+export const getCageCategoryByCode = (code: string): { id: string; name: string } => {
+  const c = code.toUpperCase()
+  if (c.includes('TRAVEL') || c.includes('CAT-M-2T') || c.includes('006') || c.includes('007') || c.includes('012')) {
+    return { id: 'CC03', name: 'Chuồng Tắm' }
+  }
+  if (c.includes('BIRD') || c.includes('SPA') || c.includes('DECO') || c.includes('008')) {
+    return { id: 'CC02', name: 'Chuồng Spa' }
+  }
+  if (c.includes('XL') || c.includes('3T') || c.includes('RABBIT') || c.includes('WOOD') || c.includes('STEEL') || c.includes('004') || c.includes('005') || c.includes('009')) {
+    return { id: 'CC04', name: 'Chuồng Lưu trú / Nội trú' }
+  }
+  return { id: 'CC01', name: 'Chuồng Grooming' }
+}
+
 const INITIAL_CAGES: Cage[] = [
   {
     id: 'CAGE-001',
     name: 'Chuồng Chó Inox 304 Size S',
     code: 'CAGE-DOG-S-INOX',
+    categoryId: 'CC01',
+    categoryName: 'Chuồng Grooming',
     size: 'S',
     material: 'Inox 304',
     color: 'Bạc',
@@ -47,6 +76,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-002',
     name: 'Chuồng Chó Inox 304 Size M',
     code: 'CAGE-DOG-M-INOX',
+    categoryId: 'CC01',
+    categoryName: 'Chuồng Grooming',
     size: 'M',
     material: 'Inox 304',
     color: 'Bạc',
@@ -86,6 +117,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-003',
     name: 'Chuồng Chó Inox 304 Size L',
     code: 'CAGE-DOG-L-INOX',
+    categoryId: 'CC01',
+    categoryName: 'Chuồng Grooming',
     size: 'L',
     material: 'Inox 304',
     color: 'Bạc',
@@ -123,6 +156,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-004',
     name: 'Chuồng Chó Sắt Sơn TĐ Size XL',
     code: 'CAGE-DOG-XL-STEEL',
+    categoryId: 'CC04',
+    categoryName: 'Chuồng Lưu trú / Nội trú',
     size: 'XL',
     material: 'Sắt sơn tĩnh điện',
     color: 'Đen',
@@ -165,6 +200,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-005',
     name: 'Chuồng Mèo 3 Tầng Inox',
     code: 'CAGE-CAT-L-3T',
+    categoryId: 'CC04',
+    categoryName: 'Chuồng Lưu trú / Nội trú',
     size: 'L',
     material: 'Inox 304',
     color: 'Bạc',
@@ -204,6 +241,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-006',
     name: 'Chuồng Mèo 2 Tầng Gấp Gọn',
     code: 'CAGE-CAT-M-2T',
+    categoryId: 'CC03',
+    categoryName: 'Chuồng Tắm',
     size: 'M',
     material: 'Sắt sơn tĩnh điện',
     color: 'Trắng',
@@ -241,6 +280,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-007',
     name: 'Lồng Vận Chuyển Nhựa PP Size S',
     code: 'CAGE-TRAVEL-S-PP',
+    categoryId: 'CC03',
+    categoryName: 'Chuồng Tắm',
     size: 'S',
     material: 'Nhựa PP cao cấp',
     color: 'Be/Nâu',
@@ -278,6 +319,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-008',
     name: 'Chuồng Chim Trang Trí Châu Âu',
     code: 'CAGE-BIRD-M-DECO',
+    categoryId: 'CC02',
+    categoryName: 'Chuồng Spa',
     size: 'M',
     material: 'Sắt mạ kẽm',
     color: 'Trắng/Vàng đồng',
@@ -319,6 +362,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-009',
     name: 'Chuồng Thỏ Gỗ Thông 2 Tầng',
     code: 'CAGE-RABBIT-L-WOOD',
+    categoryId: 'CC04',
+    categoryName: 'Chuồng Lưu trú / Nội trú',
     size: 'L',
     material: 'Gỗ thông tự nhiên',
     color: 'Vân gỗ tự nhiên',
@@ -356,6 +401,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-010',
     name: 'Chuồng Mèo Inox 201 Size S',
     code: 'CAGE-CAT-S-INOX',
+    categoryId: 'CC01',
+    categoryName: 'Chuồng Grooming',
     size: 'S',
     material: 'Inox 201',
     color: 'Bạc',
@@ -395,6 +442,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-011',
     name: 'Chuồng Chó Lưới Sắt Size M Nâng Cấp',
     code: 'CAGE-DOG-M-MESH',
+    categoryId: 'CC01',
+    categoryName: 'Chuồng Grooming',
     size: 'M',
     material: 'Lưới sắt mạ kẽm',
     color: 'Đen/Bạc',
@@ -432,6 +481,8 @@ const INITIAL_CAGES: Cage[] = [
     id: 'CAGE-012',
     name: 'Lồng Nhựa Vận Chuyển Size M',
     code: 'CAGE-TRAVEL-M-PP',
+    categoryId: 'CC03',
+    categoryName: 'Chuồng Tắm',
     size: 'M',
     material: 'Nhựa ABS',
     color: 'Xanh dương/Xám',
@@ -474,7 +525,24 @@ const getStored = (): Cage[] => {
     const data = localStorage.getItem(KEY)
     if (data) {
       try {
-        return JSON.parse(data)
+        const parsed = JSON.parse(data) as Cage[]
+        let mutated = false
+        const migrated = parsed.map(c => {
+          if (!c.categoryId) {
+            mutated = true
+            const category = getCageCategoryByCode(c.code || c.id)
+            return {
+              ...c,
+              categoryId: category.id,
+              categoryName: category.name
+            }
+          }
+          return c
+        })
+        if (mutated) {
+          localStorage.setItem(KEY, JSON.stringify(migrated))
+        }
+        return migrated
       } catch {
         /* ignore */
       }
