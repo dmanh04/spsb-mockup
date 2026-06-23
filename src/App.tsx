@@ -57,6 +57,7 @@ import ShopHeadOrdersPage from './pages/shop-head/OrdersPage'
 import ShopHeadVouchersPage from './pages/shop-head/VouchersPage'
 import ShopHeadBookingDetailPage from './pages/shop-head/BookingDetailPage'
 import ShopHeadVoucherFormPage from './pages/shop-head/VoucherFormPage'
+import ShopHeadServicesPage from './pages/shop-head/ServicesPage'
 
 // Admin
 import AdminDashboardPage from './pages/admin/DashboardPage'
@@ -169,6 +170,7 @@ export default function App() {
           <Route path="vouchers/new" element={<ShopHeadVoucherFormPage />} />
           <Route path="transfers" element={<StockTransferRequestPage />} />
           <Route path="reports" element={<ShopHeadReportsPage />} />
+          <Route path="services" element={<ShopHeadServicesPage />} />
         </Route>
 
         {/* ── Admin Portal ── */}
