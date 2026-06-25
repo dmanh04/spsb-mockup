@@ -397,6 +397,7 @@ export interface TransferItem {
   receivedQty?: number
   batchNumber?: string
   expiryDate?: string
+  prodDate?: string
 }
 
 export interface StockTransfer {
@@ -412,6 +413,7 @@ export interface StockTransfer {
   shippedAt?: string
   receivedAt?: string
   note: string
+  rejectReason?: string
 }
 
 // Cage / Enclosure (Chuồng thú cưng)
@@ -440,6 +442,7 @@ export interface StockReceiptItem {
   batchNumber?: string
   expiryDate?: string
   note?: string
+  prodDate?: string
 }
 
 export interface StockReceipt {
@@ -460,6 +463,7 @@ export interface StockReceipt {
   approvedBy?: string
   approvedAt?: string
   note: string
+  rejectReason?: string
 }
 
 // Stock Issue (Phiếu Xuất Kho - GIN)

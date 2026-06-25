@@ -493,42 +493,44 @@ export default function CreateStockReceiptPage() {
               <span className="text-xs text-gray-400 font-medium">Bắt buộc nhập</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="col-span-1 md:col-span-2">
-                <label className="form-label font-bold text-gray-700 text-xs">Loại nhập kho <span className="text-rose-500">*</span></label>
-                <select 
-                  className="form-input text-xs font-bold text-primary-700 bg-primary-50/20 border-primary-200" 
-                  value={inboundType} 
-                  onChange={e => {
-                    const type = e.target.value as any
-                    setInboundType(type)
-                    setSupplierId('')
-                    setReferenceId('')
-                    if (type === 'adjustment') {
-                      setPoReference(ADJUSTMENT_REASONS[0])
-                    } else {
-                      setPoReference('')
-                    }
-                    
-                    // Reset or suggest cost based on type
-                    if (type === 'sample') {
-                      setItems(prev => prev.map(item => ({ ...item, unitCost: 0 })))
-                    } else {
-                      setItems(prev => prev.map(item => {
-                        const sku = allSKUs.find(s => s.skuId === item.skuId)
-                        return { ...item, unitCost: sku ? Math.round(sku.price * 0.65) : item.unitCost }
-                      }))
-                    }
-                  }}
-                >
-                  <option value="supplier">📦 Mua hàng từ Nhà cung cấp</option>
-                  <option value="transfer">🔄 Nhận chuyển kho nội bộ</option>
-                  <option value="return">🛍️ Nhập hàng khách trả lại</option>
-                  <option value="sample">🎁 Nhập hàng mẫu / hàng tặng kèm</option>
-                  <option value="adjustment">⚖️ Nhập cân đối kiểm kê thừa</option>
-                </select>
+            {!isWarehouse && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="form-label font-bold text-gray-700 text-xs">Loại nhập kho <span className="text-rose-500">*</span></label>
+                  <select 
+                    className="form-input text-xs font-bold text-primary-700 bg-primary-50/20 border-primary-200" 
+                    value={inboundType} 
+                    onChange={e => {
+                      const type = e.target.value as any
+                      setInboundType(type)
+                      setSupplierId('')
+                      setReferenceId('')
+                      if (type === 'adjustment') {
+                        setPoReference(ADJUSTMENT_REASONS[0])
+                      } else {
+                        setPoReference('')
+                      }
+                      
+                      // Reset or suggest cost based on type
+                      if (type === 'sample') {
+                        setItems(prev => prev.map(item => ({ ...item, unitCost: 0 })))
+                      } else {
+                        setItems(prev => prev.map(item => {
+                          const sku = allSKUs.find(s => s.skuId === item.skuId)
+                          return { ...item, unitCost: sku ? Math.round(sku.price * 0.65) : item.unitCost }
+                        }))
+                      }
+                    }}
+                  >
+                    <option value="supplier">📦 Mua hàng từ Nhà cung cấp</option>
+                    <option value="transfer">🔄 Nhận chuyển kho nội bộ</option>
+                    <option value="return">🛍️ Nhập hàng khách trả lại</option>
+                    <option value="sample">🎁 Nhập hàng mẫu / hàng tặng kèm</option>
+                    <option value="adjustment">⚖️ Nhập cân đối kiểm kê thừa</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               {/* Supplier for 'supplier' */}

@@ -28,6 +28,10 @@ export default function StockInApprovalPage() {
   const [actualPrices, setActualPrices] = useState<Record<string, number>>({})
   const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number>>({})
   const [batchNumbers, setBatchNumbers] = useState<Record<string, string>>({})
+  const [orderedQuantities, setOrderedQuantities] = useState<Record<string, number>>({})
+  
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+  const [rejectReasonText, setRejectReasonText] = useState('')
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -43,16 +47,19 @@ export default function StockInApprovalPage() {
     const ap: Record<string, number> = {}
     const rq: Record<string, number> = {}
     const bn: Record<string, string> = {}
+    const oq: Record<string, number> = {}
     receipt.items.forEach(item => {
       ep[item.skuId] = item.estimatedCost || 0
       ap[item.skuId] = item.actualCost || item.estimatedCost || 0
       rq[item.skuId] = item.receivedQty || item.orderedQty
       bn[item.skuId] = item.batchNumber || ''
+      oq[item.skuId] = item.orderedQty
     })
     setEstimatedPrices(ep)
     setActualPrices(ap)
     setReceivedQuantities(rq)
     setBatchNumbers(bn)
+    setOrderedQuantities(oq)
   }
 
   function handleApproveWithEstimatedPrice() {
@@ -61,6 +68,8 @@ export default function StockInApprovalPage() {
       if (r.id !== selectedReceipt.id) return r
       const updatedItems = r.items.map(item => ({
         ...item,
+        orderedQty: orderedQuantities[item.skuId] ?? item.orderedQty,
+        receivedQty: orderedQuantities[item.skuId] ?? item.orderedQty, // default to match initially
         estimatedCost: estimatedPrices[item.skuId] || 0,
       }))
       const estimatedTotal = updatedItems.reduce((s, i) => s + i.orderedQty * (i.estimatedCost || 0), 0)
@@ -77,11 +86,27 @@ export default function StockInApprovalPage() {
 
   function handleReject() {
     if (!selectedReceipt) return
+    setIsRejectModalOpen(true)
+    setRejectReasonText('')
+  }
+
+  function submitReject() {
+    if (!selectedReceipt) return
+    if (!rejectReasonText.trim()) {
+      alert('Vui lòng nhập lý do từ chối!')
+      return
+    }
     const updated = receipts.map(r =>
-      r.id === selectedReceipt.id ? { ...r, status: 'cancelled' as StockReceiptStatus } : r
+      r.id === selectedReceipt.id ? { 
+        ...r, 
+        status: 'cancelled' as StockReceiptStatus,
+        rejectReason: rejectReasonText.trim()
+      } : r
     )
     setReceipts(updated); saveStockReceipts(updated)
     setSelectedReceipt(null)
+    setIsRejectModalOpen(false)
+    setRejectReasonText('')
     showToast(`Đã từ chối phiếu ${selectedReceipt.id}`)
   }
 
@@ -336,7 +361,19 @@ export default function StockInApprovalPage() {
                             <div className="text-xs font-bold text-gray-900">{item.productName}</div>
                             <div className="text-[10px] text-gray-400 font-mono">{item.skuCode}</div>
                           </td>
-                          <td className="py-3 text-xs font-bold text-gray-800">{item.orderedQty}</td>
+                          <td className="py-3 text-xs font-bold text-gray-800">
+                            {(selectedReceipt.status === 'pending_approval' || selectedReceipt.status === 'price_negotiating') ? (
+                              <input
+                                type="number"
+                                min={1}
+                                className="form-input text-xs py-1 px-2 w-20 border-amber-300 text-center font-bold"
+                                value={orderedQuantities[item.skuId] ?? item.orderedQty}
+                                onChange={e => setOrderedQuantities(prev => ({ ...prev, [item.skuId]: Math.max(1, +e.target.value) }))}
+                              />
+                            ) : (
+                              item.orderedQty
+                            )}
+                          </td>
 
                           {(selectedReceipt.status === 'pending_approval' || selectedReceipt.status === 'price_negotiating') && (
                             <td className="py-3">
@@ -439,6 +476,12 @@ export default function StockInApprovalPage() {
                 </div>
               )}
 
+              {selectedReceipt.rejectReason && (
+                <div className="mt-4 bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800">
+                  <strong>Lý do từ chối:</strong> {selectedReceipt.rejectReason}
+                </div>
+              )}
+
               {selectedReceipt.note && (
                 <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600">
                   <strong>Ghi chú:</strong> {selectedReceipt.note}
@@ -480,6 +523,42 @@ export default function StockInApprovalPage() {
                   <CheckCircle size={13} /> Xác Nhận Nhập Kho (Giá Thực Tế)
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Reason Input Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4 border border-gray-100 animate-scaleUp">
+            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              ⚠️ Lý do từ chối yêu cầu
+            </h3>
+            <p className="text-xs text-gray-500">
+              Vui lòng nhập lý do từ chối phiếu nhập kho này. Lý do sẽ được thông báo lại cho Warehouse Manager.
+            </p>
+            <textarea
+              className="form-input text-xs py-2 px-3 rounded-xl min-h-24 resize-none w-full"
+              placeholder="Nhập lý do từ chối..."
+              value={rejectReasonText}
+              onChange={e => setRejectReasonText(e.target.value)}
+            />
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => { setIsRejectModalOpen(false); setRejectReasonText(''); }}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={submitReject}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl"
+              >
+                Xác nhận Từ chối
+              </button>
             </div>
           </div>
         </div>

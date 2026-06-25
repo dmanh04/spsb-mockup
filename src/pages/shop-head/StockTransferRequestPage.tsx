@@ -401,8 +401,8 @@ export default function StockTransferRequestPage() {
             />
           </div>
 
-          <div className="flex gap-2">
-            {['all', 'pending', 'approved', 'shipped', 'in_transit', 'completed', 'rejected'].map(status => (
+          <div className="flex flex-wrap gap-2">
+            {['all', 'pending', 'approved', 'picking', 'shipped', 'in_transit', 'received', 'completed', 'partially_received', 'rejected'].map(status => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -472,6 +472,13 @@ export default function StockTransferRequestPage() {
                     </div>
                   </div>
                 </div>
+
+                {tf.status === 'rejected' && tf.rejectReason && (
+                  <div className="mb-3 bg-red-50 border border-red-100 rounded-xl p-2.5 text-[10.5px] font-semibold text-red-700 flex gap-1.5">
+                    <AlertTriangle size={12} className="shrink-0 mt-0.5 text-red-500" />
+                    <span><span className="font-extrabold">Lý do từ chối:</span> {tf.rejectReason}</span>
+                  </div>
+                )}
 
                 <div className="border-t pt-3 flex items-center justify-between" onClick={e => e.stopPropagation()}>
                   <span className="text-[10px] font-bold text-gray-400 italic truncate max-w-[160px]">"{tf.note}"</span>
@@ -544,8 +551,8 @@ export default function StockTransferRequestPage() {
                       setSelectedCageCatId('')
                     }}
                   >
-                    <option value="product">Sản phẩm (Bán/Consumable)</option>
-                    <option value="cage">Chuồng (Dùng dịch vụ)</option>
+                    <option value="product">Hàng để bán</option>
+                    <option value="cage">Chuồng</option>
                   </select>
                 </div>
 
@@ -853,32 +860,60 @@ export default function StockTransferRequestPage() {
                       <div className="absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 border border-white" />
                       <div>
                         <div className="font-bold text-gray-800">Đã phê duyệt yêu cầu</div>
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">Phê duyệt bởi Warehouse Manager</div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                          {selectedTransfer.approvedAt && <span>{selectedTransfer.approvedAt} · </span>}
+                          Phê duyệt bởi <span className="text-blue-700 font-bold">{selectedTransfer.approvedBy ?? 'Warehouse Manager'}</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Step 3: Shipped (if status completed / partially_received / shipped) */}
+                  {/* Step 3: Picking */}
+                  {['picking', 'shipped', 'in_transit', 'received', 'completed', 'partially_received'].includes(selectedTransfer.status) && (
+                    <div className="relative">
+                      <div className="absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full bg-violet-400 border border-white" />
+                      <div>
+                        <div className="font-bold text-gray-800">Kho đang soạn hàng</div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">Warehouse Manager đang kiểm kê và đóng gói hàng hóa</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 4: Shipped / In Transit */}
                   {['shipped', 'in_transit', 'received', 'completed', 'partially_received'].includes(selectedTransfer.status) && (
                     <div className="relative">
                       <div className="absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full bg-orange-400 border border-white" />
                       <div>
-                        <div className="font-bold text-gray-800">Đã xuất kho soạn hàng & Đang vận chuyển</div>
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">Đã đóng gói và bàn giao shipper</div>
+                        <div className="font-bold text-gray-800">Đã xuất kho &amp; Đang vận chuyển</div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                          {selectedTransfer.shippedAt && <span>{selectedTransfer.shippedAt} · </span>}
+                          Đã đóng gói và bàn giao shipper
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Step 4: Received / Completed */}
-                  {['completed', 'partially_received'].includes(selectedTransfer.status) && (
+                  {/* Step 5: Received / Completed */}
+                  {['received', 'completed', 'partially_received'].includes(selectedTransfer.status) && (
                     <div className="relative">
                       <div className="absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
                       <div>
-                        <div className="font-bold text-gray-800">Hoàn tất nhận hàng tại chi nhánh</div>
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">Thời gian: {selectedTransfer.receivedAt}</div>
-                        <div className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-1.5 mt-1.5">
-                          Tất cả mặt hàng đã được kiểm đếm, cập nhật tồn kho chi nhánh thành công.
+                        <div className="font-bold text-gray-800">
+                          {selectedTransfer.status === 'partially_received' ? 'Nhận hàng thiếu tại chi nhánh' : 'Hoàn tất nhận hàng tại chi nhánh'}
                         </div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                          {selectedTransfer.receivedAt && <span>Thời gian: {selectedTransfer.receivedAt}</span>}
+                        </div>
+                        {selectedTransfer.status === 'completed' && (
+                          <div className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-1.5 mt-1.5">
+                            ✅ Tất cả mặt hàng đã được kiểm đếm, cập nhật tồn kho chi nhánh thành công.
+                          </div>
+                        )}
+                        {selectedTransfer.status === 'partially_received' && (
+                          <div className="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-100 rounded-lg p-1.5 mt-1.5">
+                            ⚠️ Nhận hàng thiếu — có SKU được giao không đủ số lượng yêu cầu.
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -889,7 +924,13 @@ export default function StockTransferRequestPage() {
                       <div className="absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-white" />
                       <div>
                         <div className="font-bold text-red-700">Yêu cầu bị từ chối</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">Warehouse từ chối cấp hàng cho lý do lệch tải trọng hoặc thiếu nguồn cung tổng.</div>
+                        {selectedTransfer.rejectReason ? (
+                          <div className="text-[10.5px] mt-1 bg-red-50 border border-red-100 rounded-lg p-2 text-red-700 font-semibold">
+                            <span className="font-extrabold">Lý do: </span>{selectedTransfer.rejectReason}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-gray-400 mt-0.5">Warehouse từ chối cấp hàng — không có lý do bổ sung.</div>
+                        )}
                       </div>
                     </div>
                   )}

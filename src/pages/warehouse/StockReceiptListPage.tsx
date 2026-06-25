@@ -41,6 +41,7 @@ export default function StockReceiptListPage() {
     const expiry = new Date()
     expiry.setFullYear(today.getFullYear() + 2)
     const expiryStr = expiry.toISOString().slice(0, 10)
+    const prodStr = today.toISOString().slice(0, 10)
     
     const mapped = r.items.map((item, idx) => {
       const suffix = String(idx + 1).padStart(2, '0')
@@ -48,8 +49,10 @@ export default function StockReceiptListPage() {
       return {
         ...item,
         receivedQty: item.receivedQty || item.orderedQty,
+        actualCost: item.actualCost || item.estimatedCost || 0,
         batchNumber: item.batchNumber || suggestedBatch,
-        expiryDate: item.expiryDate || expiryStr
+        expiryDate: item.expiryDate || expiryStr,
+        prodDate: item.prodDate || prodStr
       }
     })
     setReceivingItems(mapped)
@@ -58,12 +61,16 @@ export default function StockReceiptListPage() {
   function confirmStockIn() {
     if (!receivingReceipt) return
 
+    const actualTotal = receivingItems.reduce((s, i) => s + i.receivedQty * (i.actualCost || 0), 0)
+
     const nextReceipts = receipts.map(r => {
       if (r.id !== receivingReceipt.id) return r
       return {
         ...r,
         items: receivingItems,
         status: 'completed' as const,
+        totalValue: actualTotal,
+        actualTotalValue: actualTotal,
         approvedBy: r.approvedBy || 'Admin PetCare',
         approvedAt: r.approvedAt || new Date().toISOString().slice(0, 16).replace('T', ' ')
       }
@@ -105,7 +112,7 @@ export default function StockReceiptListPage() {
         productName: item.productName,
         shopId: 'warehouse',
         quantity: quantityToAdd,
-        note: `Nhập kho từ phiếu ${receivingReceipt.id} (NCC: ${receivingReceipt.supplierName}) - Lô: ${item.batchNumber}`,
+        note: `Nhập kho từ phiếu ${receivingReceipt.id} (NCC: ${receivingReceipt.supplierName}) - Lô: ${item.batchNumber} - NSX: ${item.prodDate} - HSD: ${item.expiryDate} - Đơn giá thực tế: ${formatPrice(item.actualCost || 0)}`,
         createdBy: 'Bùi Văn Khánh',
         createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
       })
@@ -305,6 +312,12 @@ export default function StockReceiptListPage() {
                 )}
               </div>
 
+              {selected.rejectReason && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800">
+                  <strong>Lý do từ chối:</strong> {selected.rejectReason}
+                </div>
+              )}
+
               {selected.note && (
                 <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600">📋 {selected.note}</div>
               )}
@@ -324,6 +337,11 @@ export default function StockReceiptListPage() {
                             {item.batchNumber && (
                               <span className="text-[9px] font-mono bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded border border-indigo-100 font-bold">
                                 Lô: {item.batchNumber}
+                              </span>
+                            )}
+                            {item.prodDate && (
+                              <span className="text-[9px] bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-100 font-bold">
+                                NSX: {item.prodDate}
                               </span>
                             )}
                             {item.expiryDate && (
@@ -419,10 +437,11 @@ export default function StockReceiptListPage() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-gray-200 text-slate-600 font-bold">
                     <th className="py-2.5 px-3">Tên sản phẩm / SKU</th>
-                    <th className="py-2.5 px-2 text-center w-20">SL Đặt</th>
-                    <th className="py-2.5 px-2 text-center w-24">SL Thực Nhận</th>
-                    <th className="py-2.5 px-2 w-32">Số Lô <span className="text-rose-500">*</span></th>
-                    <th className="py-2.5 px-2 w-36">Hạn sử dụng <span className="text-rose-500">*</span></th>
+                    <th className="py-2.5 px-2 text-center w-16">SL Đặt</th>
+                    <th className="py-2.5 px-2 text-center w-20">SL Thực Nhận</th>
+                    <th className="py-2.5 px-2 w-32">Đơn giá thực nhận (đ) <span className="text-rose-500">*</span></th>
+                    <th className="py-2.5 px-2 w-32">Ngày sản xuất (NSX) <span className="text-rose-500">*</span></th>
+                    <th className="py-2.5 px-2 w-32">Hạn sử dụng (HSD) <span className="text-rose-500">*</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -451,14 +470,27 @@ export default function StockReceiptListPage() {
                         </td>
                         <td className="py-3 px-2">
                           <input 
-                            type="text"
+                            type="number"
+                            min={0}
                             required
-                            placeholder="Nhập mã lô"
-                            className="form-input text-xs font-mono py-1 px-2 border-gray-300 uppercase w-28"
-                            value={item.batchNumber || ''}
+                            placeholder="Đơn giá..."
+                            className="form-input text-xs py-1 px-2 border-gray-300 w-28 font-bold text-emerald-800"
+                            value={item.actualCost || ''}
                             onChange={e => {
-                              const val = e.target.value.toUpperCase()
-                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, batchNumber: val } : itm))
+                              const val = +e.target.value
+                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, actualCost: val } : itm))
+                            }}
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <input 
+                            type="date"
+                            required
+                            className="form-input text-[11px] py-1 px-2 border-gray-300 w-32 font-medium"
+                            value={item.prodDate || ''}
+                            onChange={e => {
+                              const val = e.target.value
+                              setReceivingItems(prev => prev.map((itm, i) => i === idx ? { ...itm, prodDate: val } : itm))
                             }}
                           />
                         </td>
@@ -492,7 +524,7 @@ export default function StockReceiptListPage() {
               <button 
                 type="button" 
                 onClick={confirmStockIn}
-                disabled={receivingItems.some(i => !i.batchNumber || !i.expiryDate)}
+                disabled={receivingItems.some(i => !i.prodDate || !i.expiryDate || !i.actualCost)}
                 className="btn-primary text-xs px-5 py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 📥 Hoàn tất Nhập kho

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Plus, Check, X, Truck, ArrowRight, Search, Eye, CheckCircle, XCircle, FileText, AlertTriangle } from 'lucide-react'
 import { TRANSFER_MOCK_LIST, saveTransfers } from '@/data/transferMockData'
 import { SHOP_MOCK_LIST } from '@/data/shopMockData'
 import { INVENTORY_ITEMS, INVENTORY_TRANSACTIONS, saveInventory } from '@/data/inventoryMockData'
+import { STOCK_ISSUES, saveStockIssues } from '@/data/stockIssueMockData'
 import type { StockTransfer, TransferStatus } from '@/types'
 import { useAuthContext } from '@/auth/AuthContext'
 
@@ -38,6 +39,23 @@ export default function TransfersPage() {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({})
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+  const [rejectReasonText, setRejectReasonText] = useState('')
+  const [rejectingTransferId, setRejectingTransferId] = useState<string | null>(null)
+
+  const selected = selectedId ? transfers.find(t => t.id === selectedId) : null
+
+  useEffect(() => {
+    if (selected) {
+      const eq: Record<string, number> = {}
+      selected.items.forEach(item => {
+        eq[item.skuId] = item.quantity
+      })
+      setEditedQuantities(eq)
+    }
+  }, [selectedId])
+
   const myTransfers = transfers.filter(t => !isShopHead || t.fromShopId === myShopId || t.toShopId === myShopId)
   const filtered = myTransfers
     .filter(t => filter === 'all' || t.status === filter)
@@ -54,7 +72,56 @@ export default function TransfersPage() {
     })
 
   const pendingCount = myTransfers.filter(t => t.status === 'pending').length
-  const selected = selectedId ? transfers.find(t => t.id === selectedId) : null
+
+  function approveTransfer(id: string) {
+    const transfer = transfers.find(t => t.id === id)
+    if (!transfer) return
+
+    const next = transfers.map(t => {
+      if (t.id !== id) return t
+      const updatedItems = t.items.map(item => ({
+        ...item,
+        quantity: editedQuantities[item.skuId] ?? item.quantity
+      }))
+      return {
+        ...t,
+        items: updatedItems,
+        status: 'approved' as const,
+        approvedBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
+        approvedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      }
+    })
+    setTransfers(next)
+    saveTransfers(next)
+    showToast(`Đã duyệt yêu cầu chuyển kho ${id}`)
+  }
+
+  function submitRejectTransfer() {
+    if (!rejectingTransferId) return
+    if (!rejectReasonText.trim()) {
+      alert('Vui lòng nhập lý do từ chối!')
+      return
+    }
+    const next = transfers.map(t => {
+      if (t.id !== rejectingTransferId) return t
+      return {
+        ...t,
+        status: 'rejected' as const,
+        rejectReason: rejectReasonText.trim()
+      }
+    })
+    setTransfers(next)
+    saveTransfers(next)
+    setIsRejectModalOpen(false)
+    setRejectReasonText('')
+    setRejectingTransferId(null)
+    setSelectedId(null)
+    showToast(`Đã từ chối phiếu yêu cầu`)
+  }
+
+  function showToast(msg: string) {
+    alert(msg)
+  }
 
   function updateStatus(id: string, newStatus: TransferStatus) {
     const transfer = transfers.find(t => t.id === id)
@@ -98,13 +165,42 @@ export default function TransfersPage() {
           productName: item.productName,
           shopId: transfer.fromShopId,
           quantity: -item.quantity,
-          note: `Xuất chuyển kho đến ${shopName(transfer.toShopId)} (Phiếu: ${transfer.id})`,
+          note: `Xuất kho chuyển hàng đến ${shopName(transfer.toShopId)} (Phiếu: ${transfer.id})`,
           createdBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
           createdAt: todayStr,
           transferId: transfer.id
         })
       })
       saveInventory(updatedInventory, updatedTx)
+
+      // Auto-create Goods Issue Note (Phiếu xuất kho)
+      const issueId = `GIN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(STOCK_ISSUES.length + 1).padStart(3, '0')}`
+      const newIssue = {
+        id: issueId,
+        type: 'transfer' as const,
+        warehouseId: transfer.fromShopId,
+        targetShopId: transfer.toShopId,
+        items: transfer.items.map(item => ({
+          skuId: item.skuId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitCost: 0,
+          batchNumber: item.batchNumber,
+          expiryDate: item.expiryDate
+        })),
+        totalValue: 0,
+        status: 'completed' as const,
+        reason: `Xuất kho chuyển hàng về chi nhánh ${shopName(transfer.toShopId)} theo phiếu ${transfer.id}`,
+        createdBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
+        createdAt: todayStr,
+        approvedBy: currentUser?.fullName ?? 'Bùi Văn Khánh',
+        approvedAt: todayStr,
+        note: `Tự động tạo khi xuất kho phiếu chuyển hàng ${transfer.id}`
+      }
+      const updatedIssues = [newIssue, ...STOCK_ISSUES]
+      saveStockIssues(updatedIssues)
+      alert(`Đã xuất kho thành công! Tự động khởi tạo Phiếu xuất kho: ${issueId}. Bạn có thể xem trong danh sách Phiếu xuất kho.`)
     } else if (newStatus === 'received') {
       // Add items to the receiver (toShopId)
       transfer.items.forEach(item => {
@@ -211,10 +307,10 @@ export default function TransfersPage() {
                       <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                         {t.status === 'pending' && !isShopHead && (
                           <>
-                            <button onClick={() => updateStatus(t.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt">
+                            <button onClick={() => approveTransfer(t.id)} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt">
                               <CheckCircle size={15} />
                             </button>
-                            <button onClick={() => updateStatus(t.id, 'rejected')} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Từ chối">
+                            <button onClick={() => { setRejectingTransferId(t.id); setIsRejectModalOpen(true); setRejectReasonText(''); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Từ chối">
                               <XCircle size={15} />
                             </button>
                           </>
@@ -292,6 +388,12 @@ export default function TransfersPage() {
                 )}
               </div>
 
+              {selected.rejectReason && (
+                <div className="bg-rose-50 border border-rose-250/30 rounded-xl p-3 text-xs text-rose-800">
+                  <strong>Lý do từ chối:</strong> {selected.rejectReason}
+                </div>
+              )}
+
               {selected.note && (
                 <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600">📋 {selected.note}</div>
               )}
@@ -308,7 +410,21 @@ export default function TransfersPage() {
                           {item.batchNumber && <span className="text-indigo-600 font-bold ml-2">Lô: {item.batchNumber}</span>}
                         </div>
                       </div>
-                      <span className="font-bold text-sm bg-white border px-2 py-0.5 rounded shadow-sm text-gray-700">×{item.quantity}</span>
+                      
+                      {selected.status === 'pending' && !isShopHead ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-400">SL duyệt:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            className="form-input text-xs py-0.5 px-1.5 w-16 text-center font-bold"
+                            value={editedQuantities[item.skuId] ?? item.quantity}
+                            onChange={e => setEditedQuantities(prev => ({ ...prev, [item.skuId]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                          />
+                        </div>
+                      ) : (
+                        <span className="font-bold text-sm bg-white border px-2 py-0.5 rounded shadow-sm text-gray-700">×{item.quantity}</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -317,17 +433,17 @@ export default function TransfersPage() {
               {/* Actions inside Detail Panel */}
               {selected.status === 'pending' && !isShopHead && (
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <button onClick={() => updateStatus(selected.id, 'approved')} className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                  <button onClick={() => approveTransfer(selected.id)} className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
                     <CheckCircle size={13} /> Duyệt
                   </button>
-                  <button onClick={() => updateStatus(selected.id, 'rejected')} className="py-2 px-3 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-xl hover:bg-red-50 transition-colors flex items-center gap-1">
+                  <button onClick={() => { setRejectingTransferId(selected.id); setIsRejectModalOpen(true); setRejectReasonText(''); }} className="py-2 px-3 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-xl hover:bg-red-50 transition-colors flex items-center gap-1">
                     <XCircle size={13} /> Từ chối
                   </button>
                 </div>
               )}
               {selected.status === 'approved' && !isShopHead && (
-                <button onClick={() => updateStatus(selected.id, 'shipped')} className="w-full py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5">
-                  <Truck size={13} /> Đánh dấu Đang vận chuyển
+                <button onClick={() => updateStatus(selected.id, 'shipped')} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-md">
+                  <Truck size={13} /> Xuất kho (Tạo phiếu xuất)
                 </button>
               )}
               {selected.status === 'shipped' && (isShopHead ? selected.toShopId === myShopId : true) && (
@@ -335,10 +451,52 @@ export default function TransfersPage() {
                   <CheckCircle size={13} /> Xác nhận Đã nhận hàng
                 </button>
               )}
+              {(selected.status === 'shipped' || selected.status === 'completed' || selected.status === 'received' || selected.status === 'partially_received') && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex items-center justify-between mt-2 font-bold">
+                  <span>📄 Đã liên kết phiếu xuất kho</span>
+                  <Link to={`${prefix}/issues`} className="underline font-bold text-blue-900">Xem phiếu xuất →</Link>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Reject Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4 border border-gray-100 animate-scaleUp">
+            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              ⚠️ Từ chối yêu cầu chuyển kho
+            </h3>
+            <p className="text-xs text-gray-500">
+              Vui lòng nhập lý do từ chối yêu cầu cấp hàng này.
+            </p>
+            <textarea
+              className="form-input text-xs py-2 px-3 rounded-xl min-h-24 resize-none w-full"
+              placeholder="Nhập lý do từ chối..."
+              value={rejectReasonText}
+              onChange={e => setRejectReasonText(e.target.value)}
+            />
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => { setIsRejectModalOpen(false); setRejectReasonText(''); setRejectingTransferId(null); }}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={submitRejectTransfer}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl"
+              >
+                Xác nhận Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
